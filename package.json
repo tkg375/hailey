@@ -1,0 +1,37 @@
+{
+  "name": "hailey",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "deploy": "npx opennextjs-cloudflare build && wrangler deploy",
+    "preview": "npx opennextjs-cloudflare build && wrangler dev",
+    "db:migrate:local": "wrangler d1 execute hailey-db --local --file=migrations/0001_init.sql",
+    "db:migrate:prod": "wrangler d1 execute hailey-db --file=migrations/0001_init.sql"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.55.0",
+    "@cloudflare/workers-types": "^4.20260616.1",
+    "aws4fetch": "^1.0.20",
+    "bcryptjs": "^3.0.3",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@opennextjs/cloudflare": "^1.19.11",
+    "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "wrangler": "^4.101.0"
+  }
+}

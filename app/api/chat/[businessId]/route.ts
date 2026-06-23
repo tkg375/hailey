@@ -1,0 +1,514 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getDb, generateId } from "@/lib/db";
+import { sendEmail, appointmentConfirmationEmail } from "@/lib/email";
+import { retrieveRelevant } from "@/lib/vectorize";
+
+export const dynamic = "force-dynamic";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS });
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ businessId: string }> }
+) {
+  try {
+    const { businessId } = await params;
+    const { message, conversationId } = await req.json() as any;
+
+    if (!message?.trim()) {
+      return NextResponse.json({ error: "Message required" }, { status: 400, headers: CORS });
+    }
+
+    const db = await getDb();
+
+    const business = await db.prepare(
+      "SELECT id, name, industry, phone, address, city, state, timezone, website_content, availability_url, booking_url, booking_webhook_url, booking_webhook_key, booking_agreements FROM businesses WHERE id = ? AND active = 1"
+    ).bind(businessId).first() as any;
+
+    if (!business) {
+      return NextResponse.json({ error: "Business not found" }, { status: 404, headers: CORS });
+    }
+
+    const [services, hours, faqs] = await Promise.all([
+      db.prepare("SELECT name, description, duration_minutes, price_cents FROM services WHERE business_id = ? AND active = 1")
+        .bind(businessId).all(),
+      db.prepare("SELECT day_of_week, open_time, close_time, is_closed FROM business_hours WHERE business_id = ? ORDER BY day_of_week")
+        .bind(businessId).all(),
+      db.prepare("SELECT question, answer FROM business_faqs WHERE business_id = ? AND active = 1 ORDER BY times_asked DESC LIMIT 20")
+        .bind(businessId).all(),
+    ]);
+
+    // Get or create conversation
+    let convId = conversationId;
+    if (!convId) {
+      convId = generateId();
+      await db.prepare(
+        "INSERT INTO conversations (id, business_id, channel, status, created_at, updated_at) VALUES (?, ?, 'web', 'open', datetime('now'), datetime('now'))"
+      ).bind(convId, businessId).run();
+    }
+
+    const history = await db.prepare(
+      "SELECT role, content FROM conversation_messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT 30"
+    ).bind(convId).all();
+
+    // Build context
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const hoursText = hours.results.length > 0
+      ? hours.results.map((h: any) => h.is_closed ? `${dayNames[h.day_of_week]}: Closed` : `${dayNames[h.day_of_week]}: ${h.open_time} – ${h.close_time}`).join("\n")
+      : "Hours not specified — ask the visitor to call for availability.";
+
+    const servicesText = services.results.length > 0
+      ? services.results.map((s: any) => `- ${s.name}: ${s.description || ""}  |  ${s.duration_minutes} min  |  ${s.price_cents === 0 ? "Free" : "$" + (s.price_cents / 100).toFixed(0)}`).join("\n")
+      : "Services not listed — tell the visitor to call for pricing.";
+
+    const faqsText = faqs.results.length > 0
+      ? faqs.results.map((f: any) => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n")
+      : "";
+
+    let websiteKnowledge = "";
+    if (business.website_content) {
+      try {
+        const wk = JSON.parse(business.website_content);
+        const parts: string[] = [];
+        if (wk.description) parts.push(`About: ${wk.description}`);
+        if (wk.hours) parts.push(`Hours: ${wk.hours}`);
+        if (wk.location) parts.push(`Location: ${wk.location}`);
+        if (wk.phone) parts.push(`Phone: ${wk.phone}`);
+        if (wk.policies?.length) parts.push(`Policies:\n${wk.policies.map((p: string) => `- ${p}`).join("\n")}`);
+        if (wk.services?.length) parts.push(`Services from website:\n${wk.services.map((s: any) => `- ${s.name}${s.price ? ` ($${s.price})` : ""}${s.description ? `: ${s.description}` : ""}`).join("\n")}`);
+        if (wk.faqs?.length) parts.push(`FAQs from website:\n${wk.faqs.map((f: any) => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n")}`);
+        websiteKnowledge = parts.join("\n\n");
+      } catch {}
+    }
+
+    // Fetch real-time availability for next 7 days
+    let availabilityText = "";
+    try {
+      const baseUrl = business.availability_url
+        ? (d: string) => `${business.availability_url}?date=${d}`
+        : (d: string) => `https://hailey.tgordo03.workers.dev/api/public/availability?businessId=${businessId}&date=${d}`;
+
+      const today = new Date();
+      const daySlots: (string | null)[] = new Array(7).fill(null);
+      await Promise.all(Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        const dateStr = d.toISOString().split("T")[0];
+        const label = d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+        return fetch(baseUrl(dateStr))
+          .then(r => r.json())
+          .then((data: any) => {
+            if (data.slots?.length) {
+              const fmt = (t: string) => { const [h, m] = t.split(":").map(Number); return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`; };
+              const first = fmt(data.slots[0]);
+              const last = fmt(data.slots[data.slots.length - 1]);
+              daySlots[i] = first === last ? `${label}: ${first}` : `${label}: ${first} – ${last} (every 30 min)`;
+            }
+          })
+          .catch(() => {});
+      }));
+      // Take the first 2 days that actually have openings, in chronological order
+      const trimmed = (daySlots.filter(Boolean) as string[]).slice(0, 2);
+      availabilityText = trimmed.length
+        ? `## Availability (next 2 open days)\n${trimmed.join("\n")}\n\nSuggest times within these windows. Any 30-min slot in the range may be available — the system will confirm when booking.`
+        : "## Availability\nNo open slots in the next 7 days — ask the client to check back soon.";
+    } catch {}
+
+    // Get Cloudflare AI + Vectorize bindings (needed for RAG before prompt build)
+    const ctx = await getCloudflareContext({ async: true });
+    const ai = (ctx.env as any).AI;
+    const vectorize = (ctx.env as any).VECTORIZE;
+
+    // RAG: retrieve relevant knowledge chunks for this message
+    let ragContext = "";
+    if (vectorize) {
+      ragContext = await retrieveRelevant(ai, vectorize, db, businessId, message).catch(() => "");
+    }
+
+    // Inject current date/time in business timezone (default Eastern)
+    const tz = business.timezone || "America/New_York";
+    const nowLocal = new Date().toLocaleString("en-US", { timeZone: tz });
+    const localDate = new Date(nowLocal);
+    const todayLabel = localDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: tz });
+    const tomorrowDate = new Date(localDate); tomorrowDate.setDate(localDate.getDate() + 1);
+    const tomorrowLabel = tomorrowDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: tz });
+
+    const systemPrompt = `You are Hailey, the friendly AI receptionist for ${business.name}${business.city ? ` in ${business.city}${business.state ? ", " + business.state : ""}` : ""}.
+
+## Current Date & Time
+Today is ${todayLabel}. Tomorrow is ${tomorrowLabel}. Use these when a client says "today", "tomorrow", or names a day of the week.
+
+Your job: answer questions, help visitors book appointments, and represent ${business.name} professionally. Be warm, concise, and helpful. Never make up information — if you don't know something, say so and offer to have the owner follow up.
+
+## About ${business.name}
+${business.phone ? `Scheduling/office phone (for appointment questions only — NOT an emergency line): ${business.phone}` : ""}
+${business.address ? `Address: ${business.address}` : ""}
+
+## Services
+${servicesText}
+
+## Hours
+${hoursText}
+
+${faqsText ? `## Frequently Asked Questions\n${faqsText}` : ""}
+${websiteKnowledge ? `## Additional Knowledge from Website\n${websiteKnowledge}` : ""}
+${ragContext ? `## Relevant Knowledge (retrieved for this question)\n${ragContext}` : ""}
+${availabilityText ? `\n${availabilityText}` : ""}
+
+## Booking Instructions — CRITICAL
+You CAN and WILL book, cancel, and reschedule appointments directly. Do NOT say "I'll have someone follow up." You handle everything yourself.
+
+### Booking a new appointment
+Collect these in order (ask one at a time):
+1. Preferred date and time — suggest times within the available windows shown above. Any 30-min increment within those windows is valid (e.g. 7:00 PM, 9:30 PM, 10:00 PM). The booking system will confirm the slot.
+2. Their pet's name and type (dog, cat, etc.)
+3. What concern or service they need
+4. Their full name and email address
+
+Once you have ALL four items (date, pet info, concern, AND full name + email), confirm the appointment in ONE sentence then — and ONLY then — output this on its own line:
+BOOKING_REQUEST:{"date":"<YYYY-MM-DD>","time":"<HH:MM>","name":"<full name>","email":"<email>","petName":"<pet name>","petType":"<pet type>","service":"<concern>"}
+
+IMPORTANT: Do NOT output BOOKING_REQUEST unless you have the client's full name AND email address. If you are missing either, ask for them first.
+
+### Cancelling or rescheduling an appointment
+If a client wants to cancel or reschedule:
+1. Ask for their email address
+2. Once you have it, output on its own line:
+LOOKUP_APPOINTMENTS:{"email":"<email>"}
+The system will look up their appointments and show you the results. Wait — do not output anything else on that turn.
+3. When you receive appointment data, list them clearly and ask which one they want to cancel or reschedule.
+4. For cancellation, once confirmed, output:
+CANCEL_BOOKING:{"consultationId":"<id>","email":"<email>"}
+5. For reschedule, collect the new date and time, then output:
+RESCHEDULE_BOOKING:{"consultationId":"<id>","email":"<email>","date":"<YYYY-MM-DD>","time":"<HH:MM>"}
+
+### Resend join link
+If a client says they didn't receive their appointment confirmation email or join link, ask for their email address and output:
+RESEND_LINK:{"email":"<email>"}
+
+Never ask for info you already have. Never say you'll follow up — you ARE the booking system.
+
+## Urgency Detection
+If a client describes symptoms or a situation that sounds urgent or dangerous (bleeding, difficulty breathing, severe pain, collapse, seizure, not eating for 2+ days, suspected poisoning, eye injury, trauma, etc.), immediately say:
+"This sounds urgent — please seek emergency care right away." then give the emergency clinic or emergency contact found in the website knowledge above (e.g. the emergency vet listed in the footer or FAQ). NEVER give the scheduling/office phone number for emergencies — that is not an emergency line. Do NOT proceed to book a routine appointment.
+
+Keep responses short — 1-3 sentences. Use plain text only. Do not use markdown.`;
+
+    const cfMessages = [
+      { role: "system", content: systemPrompt },
+      ...(history.results as any[]).map((m: any) => {
+        if (m.role === "appt_data") {
+          return { role: "user", content: `[CONTEXT — internal appointment data. Use IDs only in CANCEL_BOOKING/RESCHEDULE_BOOKING tokens. Never show IDs to the client.]\n${m.content}` };
+        }
+        return { role: m.role === "assistant" ? "assistant" : "user", content: m.content };
+      }),
+      { role: "user", content: message },
+    ];
+
+    // Save user message
+    await db.prepare(
+      "INSERT INTO conversation_messages (id, conversation_id, role, content, created_at) VALUES (?, ?, 'user', ?, datetime('now'))"
+    ).bind(generateId(), convId, message).run();
+
+    await db.prepare("UPDATE conversations SET updated_at = datetime('now') WHERE id = ?").bind(convId).run();
+
+    // Call Cloudflare AI
+    const aiRes = await ai.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
+      messages: cfMessages,
+      max_tokens: 512,
+    });
+
+    const assistantText: string =
+      typeof aiRes === "string" ? aiRes :
+      typeof aiRes?.response === "string" ? aiRes.response :
+      typeof aiRes?.result?.response === "string" ? aiRes.result.response :
+      typeof aiRes?.choices?.[0]?.message?.content === "string" ? aiRes.choices[0].message.content :
+      "I'm having trouble responding right now. Please try again.";
+
+    await db.prepare(
+      "INSERT INTO conversation_messages (id, conversation_id, role, content, created_at) VALUES (?, ?, 'assistant', ?, datetime('now'))"
+    ).bind(generateId(), convId, assistantText).run();
+
+    let bookingConfirmed = null;
+    let resendSent = false;
+
+    // Handle resend link request
+    const resendMatch = assistantText.match(/RESEND_LINK:(\{[^}]*\})/);
+    if (resendMatch && business.booking_webhook_url) {
+      try {
+        const { email } = JSON.parse(resendMatch[1]);
+        if (email) {
+          const resendUrl = business.booking_webhook_url.replace(/\/guest$/, "/guest-resend");
+          await fetch(resendUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-hailey-api-key": business.booking_webhook_key ?? "" },
+            body: JSON.stringify({ email }),
+          });
+          resendSent = true;
+        }
+      } catch {}
+    }
+
+    // Handle appointment lookup (cancel/reschedule flow)
+    let appointmentList: any[] = [];
+    const lookupMatch = assistantText.match(/LOOKUP_APPOINTMENTS:(\{[^}]*\})/);
+    if (lookupMatch && business.booking_webhook_url) {
+      try {
+        const { email } = JSON.parse(lookupMatch[1]);
+        if (email) {
+          const lookupUrl = business.booking_webhook_url.replace(/\/guest$/, "/email-lookup");
+          const lookupRes = await fetch(`${lookupUrl}?email=${encodeURIComponent(email)}`, {
+            headers: { "x-hailey-api-key": business.booking_webhook_key ?? "" },
+          });
+          if (lookupRes.ok) {
+            const lookupData = await lookupRes.json() as any;
+            appointmentList = lookupData.consultations ?? [];
+          }
+        }
+      } catch {}
+    }
+
+    // Handle cancel
+    const cancelMatch = assistantText.match(/CANCEL_BOOKING:(\{[^}]*\})/);
+    if (cancelMatch && business.booking_webhook_url) {
+      try {
+        const cdata = JSON.parse(cancelMatch[1]);
+        const cancelUrl = (business.booking_webhook_url as string).replace(/\/guest$/, "/guest-cancel");
+        await fetch(cancelUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-hailey-api-key": business.booking_webhook_key ?? "" },
+          body: JSON.stringify(cdata),
+        });
+      } catch {}
+    }
+
+    // Handle reschedule
+    const rescheduleMatch = assistantText.match(/RESCHEDULE_BOOKING:(\{[^}]*\})/);
+    if (rescheduleMatch && business.booking_webhook_url) {
+      try {
+        const rdata = JSON.parse(rescheduleMatch[1]);
+        const rescheduleUrl = business.booking_webhook_url.replace(/\/guest$/, "/guest-reschedule");
+        await fetch(rescheduleUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-hailey-api-key": business.booking_webhook_key ?? "" },
+          body: JSON.stringify(rdata),
+        });
+      } catch {}
+    }
+
+    let pendingBooking: any = null;
+    let bookingAgreements: any[] = [];
+
+    const bookingMatch = assistantText.match(/BOOKING_REQUEST:(\{[^}]*\})/);
+    if (bookingMatch) {
+      try {
+        const bdata = JSON.parse(bookingMatch[1]);
+        const { date, time, name, email, petName, petType, service } = bdata;
+
+        if (date && time && name && email) {
+          // If business requires agreements, return pendingBooking for widget to handle
+          if (business.booking_agreements) {
+            try { bookingAgreements = JSON.parse(business.booking_agreements); } catch {}
+          }
+
+          if (bookingAgreements.length > 0) {
+            // Widget will show agreement modal, then call /api/public/confirm-booking
+            pendingBooking = { date, time, name, email, petName, petType, service, businessId };
+          } else if (business.booking_webhook_url && business.booking_webhook_key) {
+            // No agreements required — auto-book via webhook
+            try {
+              const webhookRes = await fetch(business.booking_webhook_url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-hailey-api-key": business.booking_webhook_key },
+                body: JSON.stringify({ name, email, petName, petType, concern: service, date, time }),
+              });
+              if (webhookRes.ok) {
+                await db.prepare("UPDATE conversations SET status = 'booked' WHERE id = ?").bind(convId).run();
+                bookingConfirmed = { date, time, name, email, service, petName, petType, isGuest: true };
+              } else {
+                const errBody = await webhookRes.text().catch(() => "");
+                console.error("[booking webhook]", webhookRes.status, errBody);
+              }
+            } catch (webhookErr: any) {
+              console.error("[booking webhook fetch error]", webhookErr?.message);
+            }
+          } else {
+            // Native Hailey booking
+            const taken = await db.prepare(
+              "SELECT id FROM appointments WHERE business_id = ? AND date = ? AND time = ? AND status = 'confirmed'"
+            ).bind(businessId, date, time).first();
+
+            if (!taken) {
+              let clientId: string | null = null;
+              if (email) {
+                const existing = await db.prepare(
+                  "SELECT id FROM clients WHERE business_id = ? AND email = ?"
+                ).bind(businessId, email).first<{ id: string }>();
+                if (existing) {
+                  clientId = existing.id;
+                  await db.prepare("UPDATE clients SET name = ? WHERE id = ?").bind(name, clientId).run();
+                } else {
+                  clientId = generateId();
+                  await db.prepare("INSERT INTO clients (id, business_id, name, email, created_at) VALUES (?, ?, ?, ?, datetime('now'))")
+                    .bind(clientId, businessId, name, email).run();
+                }
+              }
+
+              const apptId = generateId();
+              await db.prepare(
+                "INSERT INTO appointments (id, business_id, client_id, client_name, client_email, service_name, date, time, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', datetime('now'))"
+              ).bind(apptId, businessId, clientId, name, email ?? null, service ?? "Appointment", date, time).run();
+
+              await db.prepare("UPDATE conversations SET status = 'booked' WHERE id = ?").bind(convId).run();
+              bookingConfirmed = { appointmentId: apptId, date, time, name, email, service };
+
+              // Send confirmation emails (non-blocking)
+              const formattedDate = new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+              const [th, tm] = time.split(":").map(Number);
+              const formattedTime = `${th % 12 || 12}:${String(tm).padStart(2, "0")} ${th >= 12 ? "PM" : "AM"}`;
+
+              const emailPromises: Promise<any>[] = [];
+
+              // Email to client
+              if (email) {
+                emailPromises.push(sendEmail({
+                  to: email,
+                  subject: `Appointment Confirmed — ${business.name}`,
+                  html: appointmentConfirmationEmail({
+                    businessName: business.name,
+                    clientName: name,
+                    serviceName: service ?? "Appointment",
+                    date: formattedDate,
+                    time: formattedTime,
+                    businessPhone: business.phone,
+                  }),
+                }).catch(() => {}));
+              }
+
+              // Email to business owner
+              const ownerRow = await db.prepare("SELECT email FROM owners WHERE business_id = ? LIMIT 1").bind(businessId).first<{ email: string }>();
+              if (ownerRow?.email) {
+                emailPromises.push(sendEmail({
+                  to: ownerRow.email,
+                  subject: `New Booking — ${name} — ${formattedDate} at ${formattedTime}`,
+                  html: `
+                    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+                      <h2 style="color:#111;">New appointment booked via Hailey</h2>
+                      <div style="background:#f4f4f5;border-radius:8px;padding:16px;margin:16px 0;">
+                        <p style="margin:4px 0;"><strong>Client:</strong> ${name}${email ? ` &lt;${email}&gt;` : ""}</p>
+                        <p style="margin:4px 0;"><strong>Service:</strong> ${service ?? "Appointment"}</p>
+                        <p style="margin:4px 0;"><strong>Date:</strong> ${formattedDate}</p>
+                        <p style="margin:4px 0;"><strong>Time:</strong> ${formattedTime}</p>
+                      </div>
+                      <p style="color:#666;font-size:13px;">View it in your <a href="https://hailey.tgordo03.workers.dev/dashboard/appointments">Hailey dashboard</a>.</p>
+                    </div>
+                  `,
+                }).catch(() => {}));
+              }
+
+              await Promise.all(emailPromises);
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // If appointments were looked up, do a second AI call with the data
+    let finalAssistantText = assistantText;
+    if (lookupMatch && appointmentList.length >= 0) {
+      const apptSummary = appointmentList.length === 0
+        ? "No upcoming appointments found for that email address."
+        : appointmentList.map((a: any, i: number) => {
+            const [h, m] = a.time.split(":").map(Number);
+            const ft = `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+            const fd = new Date(a.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+            return `${i + 1}. ID:${a.id} — ${fd} at ${ft} — ${a.pet_name} (${a.pet_type}) — ${a.concern} — Status: ${a.status}`;
+          }).join("\n");
+
+      // Persist raw appointment data so the next turn has IDs in context
+      if (appointmentList.length > 0) {
+        await db.prepare(
+          "INSERT INTO conversation_messages (id, conversation_id, role, content, created_at) VALUES (?, ?, 'appt_data', ?, datetime('now'))"
+        ).bind(generateId(), convId, apptSummary).run();
+      }
+
+      const followUpMessages = [
+        { role: "system", content: systemPrompt },
+        ...(history.results as any[]).map((m: any) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content })),
+        { role: "user", content: message },
+        { role: "assistant", content: assistantText.replace(/LOOKUP_APPOINTMENTS:\{[^}]*\}/, "").trim() },
+        { role: "user", content: `[SYSTEM: Appointment lookup complete]\n${apptSummary}\n\nPresent these appointments to the client in plain language (date, time, pet name, concern) — do NOT show the ID to the client. The ID is for internal use only. Ask what they want to do (cancel or reschedule which one). Use the ID internally when outputting CANCEL_BOOKING or RESCHEDULE_BOOKING tokens.` },
+      ];
+
+      const followUpRes = await ai.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
+        messages: followUpMessages,
+        max_tokens: 400,
+      });
+
+      const followUpText: string =
+        typeof followUpRes?.response === "string" ? followUpRes.response :
+        typeof followUpRes?.result?.response === "string" ? followUpRes.result.response :
+        typeof followUpRes?.choices?.[0]?.message?.content === "string" ? followUpRes.choices[0].message.content :
+        apptSummary;
+
+      finalAssistantText = followUpText;
+      await db.prepare(
+        "UPDATE conversation_messages SET content = ? WHERE conversation_id = ? AND role = 'assistant' ORDER BY created_at DESC LIMIT 1"
+      ).bind(finalAssistantText, convId).run();
+    }
+
+    let displayText = finalAssistantText
+      .replace(/BOOKING_REQUEST:\{[^}]*\}/g, "")
+      .replace(/BOOKING_LINK:\{[^}]*\}/g, "")
+      .replace(/RESEND_LINK:\{[^}]*\}/g, "")
+      .replace(/LOOKUP_APPOINTMENTS:\{[^}]*\}/g, "")
+      .replace(/CANCEL_BOOKING:\{[^}]*\}/g, "")
+      .replace(/RESCHEDULE_BOOKING:\{[^}]*\}/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+    // If AI only output the token with no surrounding text, generate a fallback reply
+    if (!displayText && bookingConfirmed) {
+      const [th, tm] = (bookingConfirmed.time as string).split(":").map(Number);
+      const ft = `${th % 12 || 12}:${String(tm).padStart(2, "0")} ${th >= 12 ? "PM" : "AM"}`;
+      const fd = new Date((bookingConfirmed.date as string) + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+      displayText = bookingConfirmed.isGuest
+        ? `You're all set! I've booked you for ${fd} at ${ft}. Check your email for your sign-in link to join the call.`
+        : `You're all set! Your appointment is confirmed for ${fd} at ${ft}. See you then!`;
+    }
+
+    if (!displayText && pendingBooking) {
+      displayText = "Almost there! Please review and accept the agreements below to confirm your appointment.";
+    }
+
+    if (!displayText && cancelMatch) {
+      displayText = "Done! Your appointment has been cancelled and you'll receive a confirmation email shortly.";
+    }
+
+    if (!displayText && rescheduleMatch) {
+      displayText = "Done! Your appointment has been rescheduled and you'll receive a confirmation email with the updated details.";
+    }
+
+    if (!displayText) displayText = "I'm having a bit of trouble right now. Please try again in a moment.";
+
+    return NextResponse.json({
+      reply: displayText,
+      conversationId: convId,
+      bookingConfirmed,
+      resendSent,
+      pendingBooking: pendingBooking ?? undefined,
+      bookingAgreements: bookingAgreements.length > 0 ? bookingAgreements : undefined,
+    }, { headers: CORS });
+  } catch (err: any) {
+    return NextResponse.json({ error: "Chat error: " + (err?.message ?? "unknown") }, { status: 500, headers: CORS });
+  }
+}
