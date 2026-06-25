@@ -165,7 +165,7 @@ export default function OnboardingPage() {
       <div className="orb" style={{ width: 400, height: 400, background: "radial-gradient(circle, rgba(0,212,255,0.08) 0%, transparent 70%)", top: "10%", left: "5%" }} />
       <div className="orb" style={{ width: 300, height: 300, background: "radial-gradient(circle, rgba(123,47,255,0.08) 0%, transparent 70%)", bottom: "10%", right: "5%" }} />
 
-      <div className="w-full max-w-xl relative z-10">
+      <div className="w-full max-w-xl lg:max-w-2xl relative z-10">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-4">
@@ -181,7 +181,7 @@ export default function OnboardingPage() {
           {STEPS.map((label, i) => (
             <div key={i} className="flex-1 flex flex-col items-center gap-1">
               <div className={`h-1 w-full rounded-full transition-all duration-500 ${i <= step ? "bg-gradient-to-r from-cyan-400 to-purple-500" : "bg-white/10"}`} />
-              <span className={`text-xs font-semibold hidden md:block transition-colors truncate max-w-full text-center ${i === step ? "text-cyan-400" : i < step ? "text-white/40" : "text-white/20"}`}>{label}</span>
+              <span className={`text-xs font-semibold hidden lg:block transition-colors truncate max-w-full text-center ${i === step ? "text-cyan-400" : i < step ? "text-white/40" : "text-white/20"}`}>{label}</span>
             </div>
           ))}
         </div>
