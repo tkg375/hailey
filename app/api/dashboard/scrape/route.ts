@@ -357,6 +357,54 @@ ${extractionPages}`;
       await ingestChunks(vectorize, db, session.businessId, allChunks).catch(() => {});
     }
 
+    // Generate Hailey's self-awareness profile from all scraped content
+    const fullContent = pages.map(p => p.text.slice(0, 2000)).join("\n\n---\n\n").slice(0, 20000);
+    const profilePrompt = `You are setting up an AI receptionist named Hailey for a business. Based on the website content below, answer each question as specifically as possible. Only use information clearly present on the site — do not guess or invent.
+
+Return ONLY a JSON object, no markdown, no explanation:
+{
+  "what_we_do": "1-2 sentences: what this business does and who it serves",
+  "what_we_book": "What specifically gets booked or scheduled (service names, appointment types, etc.)",
+  "processes_to_own": "Step-by-step processes Hailey should handle end-to-end (booking, intake, cancellations, rescheduling, etc.)",
+  "booking_policies": "Any rules around booking — deposit required, ID needed, age restrictions, pet requirements, etc.",
+  "payment_at_booking": {
+    "required": true or false,
+    "details": "Exactly what payment is required, when, and how much (deposit, full payment, card on file, etc.) or null if not mentioned",
+    "block_booking_without_payment": true or false
+  },
+  "who_we_are": "Brand voice, tone, and personality this business projects — formal, casual, warm, clinical, etc.",
+  "cancellation_policy": "Exact cancellation/reschedule policy including any fees or notice period required, or null if not mentioned",
+  "capabilities": "What Hailey can and cannot do for this business specifically",
+  "booking_info_required": "Exact information Hailey must collect before confirming a booking (name, email, pet name, insurance, etc.)",
+  "never_do": "Things Hailey must never say, promise, or do for this business",
+  "emergency_handling": "How to handle urgent or emergency situations — who to refer to, what to say, emergency contacts if listed",
+  "objection_handling": "Common hesitations clients may have and how to address them based on this business",
+  "differentiators": "What makes this business stand out from competitors, based on how they describe themselves",
+  "intake_requirements": "Any forms, waivers, agreements, or pre-visit requirements clients need to complete",
+  "communication_style": "Preferred tone: formal or casual, first name or title, emoji or plain text, response length style"
+}
+
+Website content:
+${fullContent}`;
+
+    const profileRes = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are a business analyst setting up an AI receptionist. Always respond with valid JSON only." },
+        { role: "user", content: profilePrompt },
+      ],
+      max_tokens: 2000,
+    });
+
+    const profileRaw = profileRes.choices[0]?.message?.content ?? "";
+    const haileyProfile = profileRaw ? parseJson(profileRaw) : null;
+
+    if (haileyProfile) {
+      await db.prepare(
+        "UPDATE businesses SET hailey_profile = ? WHERE id = ?"
+      ).bind(JSON.stringify(haileyProfile), session.businessId).run();
+    }
+
     return NextResponse.json({
       success: true,
       knowledge: extracted,
