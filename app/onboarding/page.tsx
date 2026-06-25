@@ -2,7 +2,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-const STEPS = ["Business Info", "Learn Your Site", "How You Book", "Availability", "Services", "Get Your Widget"];
+const STEPS = ["Business Info", "Learn Your Site", "How You Book", "Availability", "Services", "Widget"];
 const BOOKING_SYSTEMS = ["Custom / My own system", "Acuity Scheduling", "Jane App", "Square Appointments", "Calendly", "Mindbody", "Vagaro", "boulevard", "Other"];
 const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const DEFAULT_SCHEDULE = DAYS.map((_, i) => ({
@@ -181,7 +181,7 @@ export default function OnboardingPage() {
           {STEPS.map((label, i) => (
             <div key={i} className="flex-1 flex flex-col items-center gap-1">
               <div className={`h-1 w-full rounded-full transition-all duration-500 ${i <= step ? "bg-gradient-to-r from-cyan-400 to-purple-500" : "bg-white/10"}`} />
-              <span className={`text-xs font-semibold hidden sm:block transition-colors ${i === step ? "text-cyan-400" : i < step ? "text-white/40" : "text-white/20"}`}>{label}</span>
+              <span className={`text-xs font-semibold hidden md:block transition-colors truncate max-w-full text-center ${i === step ? "text-cyan-400" : i < step ? "text-white/40" : "text-white/20"}`}>{label}</span>
             </div>
           ))}
         </div>
