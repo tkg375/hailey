@@ -433,8 +433,8 @@
       hideTyping();
       if (data.conversationId) conversationId = data.conversationId;
       addMessage('bot', data.reply || 'Sorry, I ran into an issue. Please try again.');
-      if (data.pendingBooking && data.bookingAgreements && data.bookingAgreements.length > 0) {
-        setTimeout(function() { showAgreementModal(data.pendingBooking, data.bookingAgreements); }, 400);
+      if (data.pendingBooking) {
+        setTimeout(function() { showAgreementModal(data.pendingBooking, data.bookingAgreements || []); }, 400);
       } else if (data.bookingConfirmed) {
         addBookingConfirmedCard(data.bookingConfirmed);
       }
@@ -504,7 +504,7 @@
     var agreedAt = null;
 
     function updateConfirm() {
-      var allChecked = agreements.every(function(a) { return checked[a.key]; });
+      var allChecked = agreements.length === 0 || agreements.every(function(a) { return checked[a.key]; });
       if (allChecked) {
         confirmBtn.style.display = 'none';
         paymentStep.classList.add('visible');
