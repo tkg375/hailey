@@ -32,7 +32,7 @@ export async function POST(
     const db = await getDb();
 
     const business = await db.prepare(
-      "SELECT id, name, industry, phone, address, city, state, timezone, website_content, hailey_profile, availability_url, booking_url, booking_webhook_url, booking_webhook_key, booking_agreements, booking_system, booking_fields_required, booking_payment_required, booking_payment_details FROM businesses WHERE id = ? AND active = 1"
+      "SELECT id, name, industry, phone, address, city, state, timezone, website_content, hailey_profile, availability_url, booking_url, booking_webhook_url, booking_webhook_key, booking_agreements, booking_system, booking_fields_required, booking_payment_required, booking_payment_details, sms_consent_required, sms_consent_text FROM businesses WHERE id = ? AND active = 1"
     ).bind(businessId).first() as any;
 
     if (!business) {
@@ -152,6 +152,9 @@ export async function POST(
     const paymentRequired = business.booking_payment_required === 1 || profile?.payment_at_booking?.required === true;
     const paymentDetails = business.booking_payment_details ?? profile?.payment_at_booking?.details ?? "";
     const blockBookingWithoutPayment = paymentRequired;
+    const smsConsentRequired = business.sms_consent_required === 1;
+    const smsConsentText = (business.sms_consent_text as string | null)
+      ?? "By providing your phone number you agree to receive text message updates about your appointment. Message & data rates may apply. Reply STOP to opt out.";
 
     const ownerFields = business.booking_fields_required as string | null;
     const bookingInfoRequired = ownerFields
@@ -209,8 +212,18 @@ ${blockBookingWithoutPayment
   ? `DO NOT output BOOKING_REQUEST until the client has acknowledged and agreed to the payment requirement. Ask them to confirm they understand and are ready to pay, then proceed.`
   : `Inform the client of the payment requirement before confirming. Once they acknowledge, proceed with booking.`}` : ""}
 
-Once you have ALL required information (name, email, and anything listed above)${paymentRequired ? ", AND the client has acknowledged the payment requirement" : ""}, confirm the appointment in ONE sentence then — and ONLY then — output this on its own line:
-BOOKING_REQUEST:{"date":"<YYYY-MM-DD>","time":"<HH:MM>","name":"<full name>","email":"<email>","petName":"<pet name or null>","petType":"<pet type or null>","service":"<service or concern>"}
+${smsConsentRequired ? `### SMS / Text Message Consent — REQUIRED
+Before completing the booking, you MUST obtain explicit text message consent from the client. After collecting their phone number, present this exact disclosure and ask them to confirm:
+
+"${smsConsentText}"
+
+Ask: "Do you agree to receive text messages? (Yes / No)"
+- If YES: proceed to confirm the booking and include smsConsent: true in the BOOKING_REQUEST.
+- If NO: do not include their phone number in the booking, set smsConsent: false, and let them know appointment details will be sent by email only.
+- DO NOT output BOOKING_REQUEST until consent has been explicitly given or declined.` : ""}
+
+Once you have ALL required information (name, email, and anything listed above)${paymentRequired ? ", AND the client has acknowledged the payment requirement" : ""}${smsConsentRequired ? ", AND SMS consent has been confirmed or declined" : ""}, confirm the appointment in ONE sentence then — and ONLY then — output this on its own line:
+BOOKING_REQUEST:{"date":"<YYYY-MM-DD>","time":"<HH:MM>","name":"<full name>","email":"<email>","phone":"<phone or null>","petName":"<pet name or null>","petType":"<pet type or null>","service":"<service or concern>","smsConsent":<true|false|null>}
 
 IMPORTANT: Do NOT output BOOKING_REQUEST if you are missing the client's full name or email address. Ask for them first.
 
@@ -237,7 +250,14 @@ ${profile?.emergency_handling
   ? profile.emergency_handling
   : `If a client describes something urgent or dangerous, say "This sounds urgent — please seek emergency care right away." then provide any emergency contact found in the knowledge above. NEVER give the scheduling phone number for emergencies. Do NOT book a routine appointment.`}
 
-${profile?.communication_style ? `## Communication Style\n${profile.communication_style}\n` : ""}Keep responses short — 1-3 sentences. Use plain text only. Do not use markdown.`;
+${profile?.communication_style ? `## Communication Style\n${profile.communication_style}\n` : ""}## Response Length
+Match your response length to what is actually needed:
+- Simple questions (hours, price, location): 1-2 sentences.
+- Listing multiple services, options, or policies: use a clear list, show everything — do not cut it short.
+- Explaining a process or multiple steps: use as many sentences as needed to be complete and clear.
+- Collecting booking info one field at a time: one question per message, brief.
+Never truncate useful information. If there are 8 services, list all 8. If a policy has 3 parts, state all 3.
+Use plain text only. Do not use markdown (no **, no #, no bullet dashes).`;
 
     const cfMessages = [
       { role: "system", content: systemPrompt },

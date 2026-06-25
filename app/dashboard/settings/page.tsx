@@ -13,6 +13,7 @@ interface Business {
   tagline: string; website_url: string; website_scraped_at: string; website_content: string;
   booking_system: string; booking_fields_required: string;
   booking_payment_required: number; booking_payment_details: string;
+  sms_consent_required: number; sms_consent_text: string;
 }
 
 export default function SettingsPage() {
@@ -29,7 +30,7 @@ export default function SettingsPage() {
   const [hoursSaving, setHoursSaving] = useState(false);
   const [bookingSaved, setBookingSaved] = useState(false);
   const [bookingSaving, setBookingSaving] = useState(false);
-  const [booking, setBooking] = useState({ system: "", fields: "", payment_required: false, payment_details: "" });
+  const [booking, setBooking] = useState({ system: "", fields: "", payment_required: false, payment_details: "", sms_consent_required: false, sms_consent_text: "" });
 
   const loadHours = useCallback(async () => {
     const res = await fetch("/api/dashboard/hours");
@@ -52,6 +53,8 @@ export default function SettingsPage() {
         fields: b.booking_fields_required ?? "",
         payment_required: !!b.booking_payment_required,
         payment_details: b.booking_payment_details ?? "",
+        sms_consent_required: !!b.sms_consent_required,
+        sms_consent_text: b.sms_consent_text ?? "",
       });
     });
     loadHours();
@@ -83,6 +86,8 @@ export default function SettingsPage() {
         booking_fields_required: booking.fields || null,
         booking_payment_required: booking.payment_required ? 1 : 0,
         booking_payment_details: booking.payment_details || null,
+        sms_consent_required: booking.sms_consent_required ? 1 : 0,
+        sms_consent_text: booking.sms_consent_text || null,
       }),
     });
     setBookingSaving(false);
@@ -285,6 +290,35 @@ export default function SettingsPage() {
                   onChange={e => setBooking(b => ({ ...b, payment_details: e.target.value }))}
                   placeholder="e.g. $50 deposit required via card on file before appointment is confirmed"
                   className={inputClass} style={inputStyle}
+                />
+              </div>
+            )}
+
+            <div>
+              <label className={labelClass} style={labelStyle}>Require SMS / Text Consent?</label>
+              <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>Hailey will read your disclosure to clients and record their agreement before booking.</p>
+              <div className="flex gap-3">
+                {["No", "Yes"].map(opt => (
+                  <button key={opt} onClick={() => setBooking(b => ({ ...b, sms_consent_required: opt === "Yes" }))}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all"
+                    style={((opt === "Yes") === booking.sms_consent_required)
+                      ? { background: "rgba(0,212,255,0.15)", color: "#00d4ff", border: "1px solid rgba(0,212,255,0.4)" }
+                      : { background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {booking.sms_consent_required && (
+              <div>
+                <label className={labelClass} style={labelStyle}>SMS Consent Disclosure <span style={{ fontWeight: 400, color: "rgba(255,255,255,0.25)" }}>(optional — we have a default)</span></label>
+                <textarea
+                  value={booking.sms_consent_text}
+                  onChange={e => setBooking(b => ({ ...b, sms_consent_text: e.target.value }))}
+                  rows={3}
+                  placeholder="By providing your phone number you agree to receive text message updates about your appointment. Message & data rates may apply. Reply STOP to opt out."
+                  className={inputClass} style={{ ...inputStyle, resize: "none" }}
                 />
               </div>
             )}

@@ -31,6 +31,8 @@ export default function OnboardingPage() {
     fields: "",
     payment_required: false,
     payment_details: "",
+    sms_consent_required: false,
+    sms_consent_text: "",
   });
   const [bookingSaving, setBookingSaving] = useState(false);
 
@@ -99,6 +101,8 @@ export default function OnboardingPage() {
         booking_fields_required: booking.fields || null,
         booking_payment_required: booking.payment_required ? 1 : 0,
         booking_payment_details: booking.payment_details || null,
+        sms_consent_required: booking.sms_consent_required ? 1 : 0,
+        sms_consent_text: booking.sms_consent_text || null,
       }),
     });
     setBookingSaving(false);
@@ -354,6 +358,36 @@ export default function OnboardingPage() {
                       onChange={e => setBooking(b => ({ ...b, payment_details: e.target.value }))}
                       placeholder="e.g. $50 deposit required via card on file before appointment is confirmed"
                       className="w-full neon-input rounded-xl px-4 py-3 text-white text-sm"
+                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.2)", outline: "none" }}
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold mb-1.5 uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.5)" }}>Require SMS / text consent?</label>
+                  <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>If enabled, Hailey will read your consent disclosure to clients and record their agreement before booking.</p>
+                  <div className="flex gap-3">
+                    {["No", "Yes"].map(opt => (
+                      <button key={opt} onClick={() => setBooking(b => ({ ...b, sms_consent_required: opt === "Yes" }))}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all"
+                        style={((opt === "Yes") === booking.sms_consent_required)
+                          ? { background: "rgba(0,212,255,0.15)", color: "#00d4ff", border: "1px solid rgba(0,212,255,0.4)" }
+                          : { background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {booking.sms_consent_required && (
+                  <div>
+                    <label className="block text-xs font-bold mb-1.5 uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.5)" }}>SMS consent disclosure <span style={{ color: "rgba(255,255,255,0.25)" }}>(optional — we have a default)</span></label>
+                    <textarea
+                      value={booking.sms_consent_text}
+                      onChange={e => setBooking(b => ({ ...b, sms_consent_text: e.target.value }))}
+                      rows={3}
+                      placeholder="By providing your phone number you agree to receive text message updates about your appointment. Message & data rates may apply. Reply STOP to opt out."
+                      className="w-full neon-input rounded-xl px-4 py-3 text-white text-sm resize-none"
                       style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.2)", outline: "none" }}
                     />
                   </div>
