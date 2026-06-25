@@ -31,8 +31,6 @@ export default function OnboardingPage() {
     fields: "",
     payment_required: false,
     payment_details: "",
-    webhook_url: "",
-    webhook_key: "",
   });
   const [bookingSaving, setBookingSaving] = useState(false);
 
@@ -101,8 +99,6 @@ export default function OnboardingPage() {
         booking_fields_required: booking.fields || null,
         booking_payment_required: booking.payment_required ? 1 : 0,
         booking_payment_details: booking.payment_details || null,
-        booking_webhook_url: booking.webhook_url || null,
-        booking_webhook_key: booking.webhook_key || null,
       }),
     });
     setBookingSaving(false);
@@ -363,29 +359,6 @@ export default function OnboardingPage() {
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-xs font-bold mb-1.5 uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.5)" }}>Booking webhook URL <span style={{ color: "rgba(255,255,255,0.25)" }}>(optional)</span></label>
-                  <input
-                    value={booking.webhook_url}
-                    onChange={e => setBooking(b => ({ ...b, webhook_url: e.target.value }))}
-                    placeholder="https://yoursite.com/api/bookings"
-                    className="w-full neon-input rounded-xl px-4 py-3 text-white text-sm"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.2)", outline: "none" }}
-                  />
-                </div>
-
-                {booking.webhook_url && (
-                  <div>
-                    <label className="block text-xs font-bold mb-1.5 uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.5)" }}>Webhook API key</label>
-                    <input
-                      value={booking.webhook_key}
-                      onChange={e => setBooking(b => ({ ...b, webhook_key: e.target.value }))}
-                      placeholder="Your API key"
-                      className="w-full neon-input rounded-xl px-4 py-3 text-white text-sm"
-                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.2)", outline: "none" }}
-                    />
-                  </div>
-                )}
               </div>
 
               <div className="flex gap-3 mt-6">
