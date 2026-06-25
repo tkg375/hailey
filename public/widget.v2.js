@@ -35,13 +35,24 @@
   // ── Inject styles ──────────────────────────────────────────────
   var css = `
     #hailey-widget * { box-sizing: border-box; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    #hailey-bubble {
+    #hailey-bubble-wrap {
       position: fixed; bottom: 24px; right: 24px; z-index: 2147483647;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+    }
+    #hailey-rotating-label {
+      background: linear-gradient(135deg, ${primaryColor}, ${secondaryColor});
+      color: white; font-size: 12px; font-weight: 700; letter-spacing: 0.03em;
+      padding: 5px 12px; border-radius: 20px; white-space: nowrap;
+      box-shadow: 0 2px 12px rgba(${primaryRgb},0.45);
+      opacity: 1; transition: opacity 0.4s ease; pointer-events: none;
+    }
+    #hailey-rotating-label.fade { opacity: 0; }
+    #hailey-bubble {
       width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
       background: linear-gradient(135deg, ${primaryColor}, ${secondaryColor});
       box-shadow: 0 4px 24px rgba(${primaryRgb},0.4);
       display: flex; align-items: center; justify-content: center;
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: transform 0.2s, box-shadow 0.2s; flex-shrink: 0;
     }
     #hailey-bubble:hover { transform: scale(1.08); box-shadow: 0 6px 32px rgba(${primaryRgb},0.6); }
     #hailey-bubble svg { width: 24px; height: 24px; fill: white; transition: opacity 0.2s; }
@@ -58,7 +69,7 @@
     #hailey-panel.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: all; }
     @media (max-width: 440px) {
       #hailey-panel { right: 12px; left: 12px; width: auto; bottom: 84px; }
-      #hailey-bubble { bottom: 16px; right: 16px; }
+      #hailey-bubble-wrap { bottom: 16px; right: 16px; }
     }
     #hailey-header {
       padding: 14px 16px; display: flex; align-items: center; gap: 10px;
@@ -198,6 +209,25 @@
   var root = document.createElement('div');
   root.id = 'hailey-widget';
 
+  // Bubble wrapper + rotating label
+  var bubbleWrap = document.createElement('div');
+  bubbleWrap.id = 'hailey-bubble-wrap';
+
+  var rotatingLabel = document.createElement('div');
+  rotatingLabel.id = 'hailey-rotating-label';
+  var rotatingTexts = ['Ask Hailey anything!', 'Book Now!', 'Need some help?'];
+  var rotatingIndex = 0;
+  rotatingLabel.textContent = rotatingTexts[0];
+
+  setInterval(function() {
+    rotatingLabel.classList.add('fade');
+    setTimeout(function() {
+      rotatingIndex = (rotatingIndex + 1) % rotatingTexts.length;
+      rotatingLabel.textContent = rotatingTexts[rotatingIndex];
+      rotatingLabel.classList.remove('fade');
+    }, 400);
+  }, 3000);
+
   // Bubble button
   var bubble = document.createElement('button');
   bubble.id = 'hailey-bubble';
@@ -231,7 +261,9 @@
     </div>
     <div id="hailey-powered">Powered by <a href="https://hailey.tgordo03.workers.dev" target="_blank">Hailey AI</a></div>`;
 
-  root.appendChild(bubble);
+  bubbleWrap.appendChild(rotatingLabel);
+  bubbleWrap.appendChild(bubble);
+  root.appendChild(bubbleWrap);
   root.appendChild(panel);
   document.body.appendChild(root);
 
@@ -284,6 +316,7 @@
     panel.classList.add('open');
     iconChat.style.display = 'none';
     iconClose.style.display = '';
+    rotatingLabel.style.display = 'none';
     if (messages.children.length === 0) {
       setTimeout(function () {
         addMessage('bot', "Hey there! 👋 I'm Hailey. How can I help you today?");
@@ -297,6 +330,7 @@
     panel.classList.remove('open');
     iconChat.style.display = '';
     iconClose.style.display = 'none';
+    rotatingLabel.style.display = '';
   }
 
   bubble.addEventListener('click', function () { isOpen ? closePanel() : openPanel(); });
