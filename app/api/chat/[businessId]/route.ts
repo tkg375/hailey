@@ -196,6 +196,12 @@ You CAN and WILL book, cancel, and reschedule appointments directly. Do NOT say 
 ### Booking a new appointment
 ${bookingInfoRequired}
 
+CRITICAL COLLECTION RULES:
+- Ask ONE question at a time. Never combine two questions into one message.
+- Before asking any question, review the full conversation history above to see what has already been answered. NEVER re-ask a question that has already been answered, even if the answer was given several messages ago.
+- Work through the fields in order. Once a field is answered, consider it collected and move to the next unanswered field.
+- If the client's answer covers multiple fields at once, mark them all as collected.
+
 ${paymentRequired ? `### PAYMENT REQUIRED — Read carefully
 This business requires payment before a booking is confirmed.
 ${paymentDetails ? `Payment details: ${paymentDetails}` : ""}
