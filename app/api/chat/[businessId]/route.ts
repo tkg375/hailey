@@ -223,7 +223,9 @@ Ask: "Do you agree to receive text messages? (Yes / No)"
 - DO NOT output BOOKING_REQUEST until consent has been explicitly given or declined.` : ""}
 
 Once you have ALL required information (name, email, and anything listed above)${paymentRequired ? ", AND the client has acknowledged the payment requirement" : ""}${smsConsentRequired ? ", AND SMS consent has been confirmed or declined" : ""}, confirm the appointment in ONE sentence then — and ONLY then — output this on its own line:
-BOOKING_REQUEST:{"date":"<YYYY-MM-DD>","time":"<HH:MM>","name":"<full name>","email":"<email>","phone":"<phone or null>","petName":"<pet name or null>","petType":"<pet type or null>","service":"<service or concern>","smsConsent":<true|false|null>}
+BOOKING_REQUEST:{"date":"<YYYY-MM-DD>","time":"<HH:MM>","name":"<full name>","email":"<email>","phone":"<phone or null>","petName":"<pet name or null>","petType":"<animal type or null>","petBreed":"<breed or null>","petDob":"<YYYY-MM-DD or null>","petWeight":"<weight in lbs or null>","petSex":"<Male or Female or null>","petSpayedNeutered":"<Yes or No or null>","petColor":"<color or null>","pharmacyName":"<pharmacy name or null>","pharmacyAddress":"<pharmacy address or null>","service":"<service or concern>","smsConsent":<true|false|null>}
+
+Fill every field you collected. Use null for anything not asked or not answered.
 
 IMPORTANT: Do NOT output BOOKING_REQUEST if you are missing the client's full name or email address. Ask for them first.
 
@@ -355,7 +357,7 @@ Use plain text only. Do not use markdown (no **, no #, no bullet dashes).`;
     let pendingBooking: any = null;
     let bookingAgreements: any[] = [];
 
-    const bookingMatch = assistantText.match(/BOOKING_REQUEST:(\{[^}]*\})/);
+    const bookingMatch = assistantText.match(/BOOKING_REQUEST:(\{[\s\S]*?\})(?:\s|$)/);
     if (bookingMatch) {
       try {
         const bdata = JSON.parse(bookingMatch[1]);
@@ -505,7 +507,7 @@ Use plain text only. Do not use markdown (no **, no #, no bullet dashes).`;
     }
 
     let displayText = finalAssistantText
-      .replace(/BOOKING_REQUEST:\{[^}]*\}/g, "")
+      .replace(/BOOKING_REQUEST:\{[\s\S]*?\}(?=\s|$)/g, "")
       .replace(/BOOKING_LINK:\{[^}]*\}/g, "")
       .replace(/RESEND_LINK:\{[^}]*\}/g, "")
       .replace(/LOOKUP_APPOINTMENTS:\{[^}]*\}/g, "")

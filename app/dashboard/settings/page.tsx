@@ -30,7 +30,7 @@ export default function SettingsPage() {
   const [hoursSaving, setHoursSaving] = useState(false);
   const [bookingSaved, setBookingSaved] = useState(false);
   const [bookingSaving, setBookingSaving] = useState(false);
-  const [booking, setBooking] = useState({ system: "", fields: "", payment_required: false, payment_details: "", sms_consent_required: false, sms_consent_text: "" });
+  const [booking, setBooking] = useState({ system: "", fields: "", payment_required: false, payment_details: "", sms_consent_required: false, sms_consent_text: "", webhook_url: "", webhook_key: "", agreements: "" });
 
   const loadHours = useCallback(async () => {
     const res = await fetch("/api/dashboard/hours");
@@ -55,6 +55,9 @@ export default function SettingsPage() {
         payment_details: b.booking_payment_details ?? "",
         sms_consent_required: !!b.sms_consent_required,
         sms_consent_text: b.sms_consent_text ?? "",
+        webhook_url: b.booking_webhook_url ?? "",
+        webhook_key: b.booking_webhook_key ?? "",
+        agreements: b.booking_agreements ?? "",
       });
     });
     loadHours();
@@ -88,6 +91,9 @@ export default function SettingsPage() {
         booking_payment_details: booking.payment_details || null,
         sms_consent_required: booking.sms_consent_required ? 1 : 0,
         sms_consent_text: booking.sms_consent_text || null,
+        booking_webhook_url: booking.webhook_url || null,
+        booking_webhook_key: booking.webhook_key || null,
+        booking_agreements: booking.agreements || null,
       }),
     });
     setBookingSaving(false);
@@ -319,6 +325,44 @@ export default function SettingsPage() {
                   rows={3}
                   placeholder="By providing your phone number you agree to receive text message updates about your appointment. Message & data rates may apply. Reply STOP to opt out."
                   className={inputClass} style={{ ...inputStyle, resize: "none" }}
+                />
+              </div>
+            )}
+
+            <div>
+              <label className={labelClass} style={labelStyle}>Booking Webhook URL <span style={{ fontWeight: 400, color: "rgba(255,255,255,0.25)" }}>(advanced)</span></label>
+              <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>Hailey will POST confirmed bookings here. Leave blank to use Hailey's native booking.</p>
+              <input
+                value={booking.webhook_url}
+                onChange={e => setBooking(b => ({ ...b, webhook_url: e.target.value }))}
+                placeholder="https://yoursite.com/api/hailey/book"
+                className={inputClass} style={inputStyle}
+              />
+            </div>
+
+            {booking.webhook_url && (
+              <div>
+                <label className={labelClass} style={labelStyle}>Webhook Secret Key</label>
+                <input
+                  value={booking.webhook_key}
+                  onChange={e => setBooking(b => ({ ...b, webhook_key: e.target.value }))}
+                  placeholder="Your HAILEY_WEBHOOK_SECRET value"
+                  type="password"
+                  className={inputClass} style={inputStyle}
+                />
+              </div>
+            )}
+
+            {booking.webhook_url && (
+              <div>
+                <label className={labelClass} style={labelStyle}>Required Agreements JSON <span style={{ fontWeight: 400, color: "rgba(255,255,255,0.25)" }}>(optional)</span></label>
+                <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>JSON array of agreements the client must accept before the widget confirms the booking. Each: {"{ key, title, body }"}</p>
+                <textarea
+                  value={booking.agreements}
+                  onChange={e => setBooking(b => ({ ...b, agreements: e.target.value }))}
+                  rows={4}
+                  placeholder='[{"key":"terms","title":"Terms of Service","body":"I agree to the terms..."}]'
+                  className={inputClass} style={{ ...inputStyle, resize: "none", fontFamily: "monospace", fontSize: "12px" }}
                 />
               </div>
             )}

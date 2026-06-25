@@ -524,7 +524,7 @@
         var piRes = await fetch(API_BASE + '/api/public/payment-intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ businessId: businessId, name: pendingBooking.name, email: pendingBooking.email }),
+          body: JSON.stringify({ businessId: businessId, name: pendingBooking.name, email: pendingBooking.email, phone: pendingBooking.phone || null }),
         });
         var piData = await piRes.json();
         if (!piRes.ok || !piData.clientSecret) {
@@ -532,6 +532,7 @@
           return;
         }
         clientSecret = piData.clientSecret;
+        if (piData.stripeCustomerId) pendingBooking.stripeCustomerId = piData.stripeCustomerId;
         agreedKeys = Object.keys(checked).filter(function(k) { return checked[k]; });
         agreedAt = Math.floor(Date.now() / 1000);
 
@@ -627,6 +628,7 @@
             agreedKeys: agreedKeys,
             agreedAt: agreedAt,
             paymentIntentId: result.paymentIntent.id,
+            stripeCustomerId: pendingBooking.stripeCustomerId || null,
           }),
         });
         var bookData = await bookRes.json();

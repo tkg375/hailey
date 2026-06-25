@@ -15,7 +15,7 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { businessId, pendingBooking, agreedKeys, agreedAt } = await req.json() as any;
+    const { businessId, pendingBooking, agreedKeys, agreedAt, paymentIntentId, stripeCustomerId } = await req.json() as any;
 
     if (!businessId || !pendingBooking) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400, headers: CORS });
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { date, time, name, email, petName, petType, service } = pendingBooking;
+    const { date, time, name, email, phone, petName, petType, petBreed, petDob, petWeight, petSex, petSpayedNeutered, petColor, pharmacyName, pharmacyAddress, pharmacyPhone, service, smsConsent } = pendingBooking;
 
     if (!date || !time || !name || !email) {
       return NextResponse.json({ error: "Incomplete booking data" }, { status: 400, headers: CORS });
@@ -54,11 +54,21 @@ export async function POST(req: NextRequest) {
           "x-hailey-api-key": business.booking_webhook_key,
         },
         body: JSON.stringify({
-          name, email, petName, petType,
+          name, email, phone: phone ?? null,
+          petName, petType, petBreed: petBreed ?? null,
+          petDob: petDob ?? null, petWeight: petWeight ?? null,
+          petSex: petSex ?? null, petSpayedNeutered: petSpayedNeutered ?? null,
+          petColor: petColor ?? null,
           concern: service,
           date, time,
+          pharmacyName: pharmacyName ?? null,
+          pharmacyAddress: pharmacyAddress ?? null,
+          pharmacyPhone: pharmacyPhone ?? null,
+          paymentIntentId: paymentIntentId ?? null,
+          stripeCustomerId: stripeCustomerId ?? null,
           agreedKeys,
           agreedAt,
+          smsConsent: smsConsent ?? null,
         }),
       });
 
