@@ -342,45 +342,39 @@ export default function SettingsPage() {
               />
             </div>
 
-            {booking.webhook_url && (
-              <div>
-                <label className={labelClass} style={labelStyle}>Webhook Secret Key</label>
-                <input
-                  value={booking.webhook_key}
-                  onChange={e => setBooking(b => ({ ...b, webhook_key: e.target.value }))}
-                  placeholder="Your HAILEY_WEBHOOK_SECRET value"
-                  type="password"
-                  className={inputClass} style={inputStyle}
-                />
-              </div>
-            )}
+            <div>
+              <label className={labelClass} style={labelStyle}>Webhook Secret Key</label>
+              <input
+                value={booking.webhook_key}
+                onChange={e => setBooking(b => ({ ...b, webhook_key: e.target.value }))}
+                placeholder="Shared secret between your site and Hailey"
+                type="password"
+                className={inputClass} style={inputStyle}
+              />
+            </div>
 
-            {booking.webhook_url && (
-              <div>
-                <label className={labelClass} style={labelStyle}>Payment Intent URL <span style={{ fontWeight: 400, color: "rgba(255,255,255,0.25)" }}>(if site collects payment)</span></label>
-                <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>Where Hailey proxies Stripe PaymentIntent creation. Leave blank if no payment collected through Hailey.</p>
-                <input
-                  value={booking.payment_url}
-                  onChange={e => setBooking(b => ({ ...b, payment_url: e.target.value }))}
-                  placeholder="https://yoursite.com/api/hailey/payment-intent"
-                  className={inputClass} style={inputStyle}
-                />
-              </div>
-            )}
+            <div>
+              <label className={labelClass} style={labelStyle}>Payment Intent URL <span style={{ fontWeight: 400, color: "rgba(255,255,255,0.25)" }}>(if your site collects payment)</span></label>
+              <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>Where Hailey proxies Stripe PaymentIntent creation. Leave blank if no payment is collected through Hailey.</p>
+              <input
+                value={booking.payment_url}
+                onChange={e => setBooking(b => ({ ...b, payment_url: e.target.value }))}
+                placeholder="https://yoursite.com/api/hailey/payment-intent"
+                className={inputClass} style={inputStyle}
+              />
+            </div>
 
-            {booking.webhook_url && (
-              <div>
-                <label className={labelClass} style={labelStyle}>Required Agreements JSON <span style={{ fontWeight: 400, color: "rgba(255,255,255,0.25)" }}>(optional)</span></label>
-                <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>JSON array of agreements the client must accept before the widget confirms the booking. Each: {"{ key, title, body }"}</p>
-                <textarea
-                  value={booking.agreements}
-                  onChange={e => setBooking(b => ({ ...b, agreements: e.target.value }))}
-                  rows={4}
-                  placeholder='[{"key":"terms","title":"Terms of Service","body":"I agree to the terms..."}]'
-                  className={inputClass} style={{ ...inputStyle, resize: "none", fontFamily: "monospace", fontSize: "12px" }}
-                />
-              </div>
-            )}
+            <div>
+              <label className={labelClass} style={labelStyle}>Required Agreements JSON <span style={{ fontWeight: 400, color: "rgba(255,255,255,0.25)" }}>(optional)</span></label>
+              <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>JSON array of agreements shown in the widget before booking. Each item needs key, title, and body.</p>
+              <textarea
+                value={booking.agreements}
+                onChange={e => setBooking(b => ({ ...b, agreements: e.target.value }))}
+                rows={4}
+                placeholder='[{"key":"terms","title":"Terms of Service","body":"I agree to the terms..."}]'
+                className={inputClass} style={{ ...inputStyle, resize: "none", fontFamily: "monospace", fontSize: "12px" }}
+              />
+            </div>
 
             <button onClick={saveBooking} disabled={bookingSaving}
               className="btn-neon w-full py-3 rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50">
