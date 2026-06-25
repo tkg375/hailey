@@ -1,6 +1,6 @@
 import { generateId } from "./db";
+import { getOpenAI } from "./openai";
 
-const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5"; // 768 dimensions
 const CHUNK_SIZE = 1800;
 const CHUNK_OVERLAP = 200;
 const TOP_K = 6;
@@ -20,13 +20,17 @@ export function chunkText(text: string, sourceLabel: string): { content: string;
   return chunks;
 }
 
-async function embed(ai: any, text: string): Promise<number[]> {
-  const res = await ai.run(EMBED_MODEL, { text: [text] });
-  return res?.data?.[0] ?? res?.[0] ?? [];
+async function embed(text: string): Promise<number[]> {
+  const openai = getOpenAI();
+  const res = await openai.embeddings.create({
+    model: "text-embedding-3-small",
+    input: text,
+    dimensions: 768,
+  });
+  return res.data[0]?.embedding ?? [];
 }
 
 export async function ingestChunks(
-  ai: any,
   vectorize: any,
   db: D1Database,
   businessId: string,
@@ -38,7 +42,7 @@ export async function ingestChunks(
   const dbRows: { id: string; content: string; sourceType: string; sourceLabel: string }[] = [];
 
   for (const chunk of chunks) {
-    const values = await embed(ai, chunk.content);
+    const values = await embed(chunk.content);
     if (!values.length) continue;
     const id = generateId();
     vectors.push({ id, values, metadata: { businessId, sourceType: chunk.sourceType, sourceLabel: chunk.sourceLabel } });
@@ -78,13 +82,12 @@ export async function deleteBusinessChunks(
 }
 
 export async function retrieveRelevant(
-  ai: any,
   vectorize: any,
   db: D1Database,
   businessId: string,
   query: string
 ): Promise<string> {
-  const queryVec = await embed(ai, query);
+  const queryVec = await embed(query);
   if (!queryVec.length) return "";
 
   const results = await vectorize.query(queryVec, {
@@ -96,7 +99,6 @@ export async function retrieveRelevant(
   const matches = results?.matches ?? [];
   if (!matches.length) return "";
 
-  // Filter to score >= 0.35 to avoid irrelevant noise
   const relevant = matches.filter((m: any) => (m.score ?? 0) >= 0.35);
   if (!relevant.length) return "";
 
@@ -108,6 +110,5 @@ export async function retrieveRelevant(
     `SELECT content, source_label FROM knowledge_chunks WHERE id IN (${placeholders})`
   ).bind(...ids).all();
 
-  const chunks = (rows.results as any[]).map(r => r.content).join("\n\n---\n\n");
-  return chunks;
+  return (rows.results as any[]).map(r => r.content).join("\n\n---\n\n");
 }

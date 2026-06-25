@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getDb, generateId } from "@/lib/db";
+import { getOpenAI } from "@/lib/openai";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +15,7 @@ export async function GET(req: NextRequest) {
   }
 
   const db = await getDb();
-  const ctx = await getCloudflareContext({ async: true });
-  const AI = (ctx.env as any).AI;
+  const openai = getOpenAI();
 
   // Get all businesses with conversations in the last 7 days
   const businesses = await db.prepare(`
@@ -68,12 +67,13 @@ Respond with ONLY valid JSON in this exact format:
 Include up to 5 top_questions and up to 10 insights. Only include real patterns from the conversations.`;
 
     try {
-      const aiResponse = await AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
+      const aiResponse = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
         messages: [{ role: "user", content: analysisPrompt }],
         max_tokens: 1024,
       });
 
-      const responseText: string = aiResponse.response || "";
+      const responseText: string = aiResponse.choices[0]?.message?.content ?? "";
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) continue;
 

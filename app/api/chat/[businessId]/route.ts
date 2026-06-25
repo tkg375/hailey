@@ -3,6 +3,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getDb, generateId } from "@/lib/db";
 import { sendEmail, appointmentConfirmationEmail } from "@/lib/email";
 import { retrieveRelevant } from "@/lib/vectorize";
+import { getOpenAI } from "@/lib/openai";
 
 export const dynamic = "force-dynamic";
 
@@ -123,15 +124,14 @@ export async function POST(
         : "## Availability\nNo open slots in the next 7 days — ask the client to check back soon.";
     } catch {}
 
-    // Get Cloudflare AI + Vectorize bindings (needed for RAG before prompt build)
+    // Get Cloudflare Vectorize binding for RAG
     const ctx = await getCloudflareContext({ async: true });
-    const ai = (ctx.env as any).AI;
     const vectorize = (ctx.env as any).VECTORIZE;
 
     // RAG: retrieve relevant knowledge chunks for this message
     let ragContext = "";
     if (vectorize) {
-      ragContext = await retrieveRelevant(ai, vectorize, db, businessId, message).catch(() => "");
+      ragContext = await retrieveRelevant(vectorize, db, businessId, message).catch(() => "");
     }
 
     // Inject current date/time in business timezone (default Eastern)
@@ -221,18 +221,15 @@ Keep responses short — 1-3 sentences. Use plain text only. Do not use markdown
 
     await db.prepare("UPDATE conversations SET updated_at = datetime('now') WHERE id = ?").bind(convId).run();
 
-    // Call Cloudflare AI
-    const aiRes = await ai.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
-      messages: cfMessages,
+    // Call OpenAI
+    const openai = getOpenAI();
+    const aiRes = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: cfMessages as any,
       max_tokens: 512,
     });
 
-    const assistantText: string =
-      typeof aiRes === "string" ? aiRes :
-      typeof aiRes?.response === "string" ? aiRes.response :
-      typeof aiRes?.result?.response === "string" ? aiRes.result.response :
-      typeof aiRes?.choices?.[0]?.message?.content === "string" ? aiRes.choices[0].message.content :
-      "I'm having trouble responding right now. Please try again.";
+    const assistantText: string = aiRes.choices[0]?.message?.content ?? "I'm having trouble responding right now. Please try again.";
 
     await db.prepare(
       "INSERT INTO conversation_messages (id, conversation_id, role, content, created_at) VALUES (?, ?, 'assistant', ?, datetime('now'))"
@@ -449,16 +446,13 @@ Keep responses short — 1-3 sentences. Use plain text only. Do not use markdown
         { role: "user", content: `[SYSTEM: Appointment lookup complete]\n${apptSummary}\n\nPresent these appointments to the client in plain language (date, time, pet name, concern) — do NOT show the ID to the client. The ID is for internal use only. Ask what they want to do (cancel or reschedule which one). Use the ID internally when outputting CANCEL_BOOKING or RESCHEDULE_BOOKING tokens.` },
       ];
 
-      const followUpRes = await ai.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
-        messages: followUpMessages,
+      const followUpRes = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: followUpMessages as any,
         max_tokens: 400,
       });
 
-      const followUpText: string =
-        typeof followUpRes?.response === "string" ? followUpRes.response :
-        typeof followUpRes?.result?.response === "string" ? followUpRes.result.response :
-        typeof followUpRes?.choices?.[0]?.message?.content === "string" ? followUpRes.choices[0].message.content :
-        apptSummary;
+      const followUpText: string = followUpRes.choices[0]?.message?.content ?? apptSummary;
 
       finalAssistantText = followUpText;
       await db.prepare(

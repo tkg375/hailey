@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getDb } from "@/lib/db";
 import { chunkText, ingestChunks, deleteBusinessChunks } from "@/lib/vectorize";
+import { getOpenAI } from "@/lib/openai";
 
 export const dynamic = "force-dynamic";
 
@@ -290,13 +291,10 @@ Website content:
 ${extractionPages}`;
 
     const ctx = await getCloudflareContext({ async: true });
-    const ai = (ctx.env as any).AI;
 
-    if (!ai) {
-      return NextResponse.json({ error: "AI binding not available." }, { status: 500 });
-    }
-
-    const aiRes = await ai.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
+    const openai = getOpenAI();
+    const aiRes = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "You are a data extraction assistant. Always respond with valid JSON only, no explanation." },
         { role: "user", content: prompt },
@@ -304,15 +302,10 @@ ${extractionPages}`;
       max_tokens: 2048,
     });
 
-    const rawText: string =
-      typeof aiRes === "string" ? aiRes :
-      typeof aiRes?.response === "string" ? aiRes.response :
-      typeof aiRes?.result?.response === "string" ? aiRes.result.response :
-      typeof aiRes?.choices?.[0]?.message?.content === "string" ? aiRes.choices[0].message.content :
-      "";
+    const rawText: string = aiRes.choices[0]?.message?.content ?? "";
 
     if (!rawText) {
-      return NextResponse.json({ error: `AI returned empty text. Shape: ${JSON.stringify(aiRes).slice(0, 300)}` }, { status: 500 });
+      return NextResponse.json({ error: "AI returned empty text." }, { status: 500 });
     }
 
     const extracted = parseJson(rawText);
@@ -361,7 +354,7 @@ ${extractionPages}`;
         allChunks.push({ content: `Hours of operation: ${extracted.hours}`, sourceType: "website", sourceLabel: "hours" });
       }
 
-      await ingestChunks(ai, vectorize, db, session.businessId, allChunks).catch(() => {});
+      await ingestChunks(vectorize, db, session.businessId, allChunks).catch(() => {});
     }
 
     return NextResponse.json({

@@ -27,14 +27,13 @@ export async function POST(req: NextRequest) {
 
   const db = await getDb();
   const ctx = await getCloudflareContext({ async: true });
-  const ai = (ctx.env as any).AI;
   const vectorize = (ctx.env as any).VECTORIZE;
 
   if (!vectorize) return NextResponse.json({ error: "Vectorize not available" }, { status: 500 });
 
   const rawChunks = chunkText(text.trim(), sourceLabel ?? "Custom");
   const chunks = rawChunks.map(c => ({ ...c, sourceType: "manual" }));
-  const count = await ingestChunks(ai, vectorize, db, session.businessId, chunks);
+  const count = await ingestChunks(vectorize, db, session.businessId, chunks);
 
   return NextResponse.json({ success: true, chunksAdded: count });
 }
