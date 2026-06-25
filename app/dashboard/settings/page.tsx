@@ -5,11 +5,14 @@ const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Satur
 const DEFAULT_SCHEDULE = DAYS.map((_, i) => ({
   day_of_week: i, open_time: "09:00", close_time: "17:00", is_closed: i === 0 || i === 6,
 }));
+const BOOKING_SYSTEMS = ["Custom / My own system", "Acuity Scheduling", "Jane App", "Square Appointments", "Calendly", "Mindbody", "Vagaro", "Boulevard", "Other"];
 
 interface Business {
   name: string; industry: string; email: string; phone: string;
   address: string; city: string; state: string; timezone: string;
   tagline: string; website_url: string; website_scraped_at: string; website_content: string;
+  booking_system: string; booking_fields_required: string;
+  booking_payment_required: number; booking_payment_details: string;
 }
 
 export default function SettingsPage() {
@@ -24,6 +27,9 @@ export default function SettingsPage() {
   const [schedule, setSchedule] = useState(DEFAULT_SCHEDULE);
   const [hoursSaved, setHoursSaved] = useState(false);
   const [hoursSaving, setHoursSaving] = useState(false);
+  const [bookingSaved, setBookingSaved] = useState(false);
+  const [bookingSaving, setBookingSaving] = useState(false);
+  const [booking, setBooking] = useState({ system: "", fields: "", payment_required: false, payment_details: "" });
 
   const loadHours = useCallback(async () => {
     const res = await fetch("/api/dashboard/hours");
@@ -38,8 +44,15 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetch("/api/dashboard/settings").then(r => r.json()).then((d: any) => {
-      setBusiness(d.business ?? {});
-      setWebsiteUrl(d.business?.website_url ?? "");
+      const b = d.business ?? {};
+      setBusiness(b);
+      setWebsiteUrl(b.website_url ?? "");
+      setBooking({
+        system: b.booking_system ?? "",
+        fields: b.booking_fields_required ?? "",
+        payment_required: !!b.booking_payment_required,
+        payment_details: b.booking_payment_details ?? "",
+      });
     });
     loadHours();
   }, [loadHours]);
@@ -58,6 +71,23 @@ export default function SettingsPage() {
 
   function updateDay(idx: number, field: string, value: any) {
     setSchedule(s => s.map((d, i) => i === idx ? { ...d, [field]: value } : d));
+  }
+
+  async function saveBooking() {
+    setBookingSaving(true);
+    await fetch("/api/dashboard/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        booking_system: booking.system || null,
+        booking_fields_required: booking.fields || null,
+        booking_payment_required: booking.payment_required ? 1 : 0,
+        booking_payment_details: booking.payment_details || null,
+      }),
+    });
+    setBookingSaving(false);
+    setBookingSaved(true);
+    setTimeout(() => setBookingSaved(false), 3000);
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -199,6 +229,71 @@ export default function SettingsPage() {
             className="btn-neon mt-5 w-full py-3 rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50">
             {hoursSaved ? "✓ Hours Saved!" : hoursSaving ? "Saving..." : "Save Hours →"}
           </button>
+        </div>
+
+        {/* How You Book */}
+        <div className="glass rounded-2xl p-6 relative overflow-hidden" style={{ border: "1px solid rgba(0,212,255,0.2)" }}>
+          <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #00d4ff, transparent)" }} />
+          <h2 className="font-black text-white mb-1">📋 How You Book</h2>
+          <p className="text-xs mb-5" style={{ color: "rgba(255,255,255,0.4)" }}>
+            Hailey will ask clients exactly these fields — in this order — before confirming a booking.
+          </p>
+          <div className="space-y-5">
+            <div>
+              <label className={labelClass} style={labelStyle}>Booking System</label>
+              <select value={booking.system} onChange={e => setBooking(b => ({ ...b, system: e.target.value }))}
+                className="w-full rounded-xl px-4 py-3 text-sm neon-input"
+                style={{ background: "#0d1117", border: "1px solid rgba(0,212,255,0.2)", outline: "none", color: booking.system ? "white" : "rgba(255,255,255,0.3)" }}>
+                <option value="" style={{ background: "#0d1117" }}>Select your booking system…</option>
+                {BOOKING_SYSTEMS.map(s => <option key={s} value={s} style={{ background: "#0d1117", color: "white" }}>{s}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className={labelClass} style={labelStyle}>Fields to Collect from Clients</label>
+              <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>Paste your booking form fields — Hailey asks these in order, one at a time.</p>
+              <textarea
+                value={booking.fields}
+                onChange={e => setBooking(b => ({ ...b, fields: e.target.value }))}
+                rows={8}
+                placeholder={"Full Name *\nEmail Address *\nPhone Number *\nPet's Name *\nAnimal Type *\nBreed *\nDate of Birth *\nWeight (lbs) *\nSex *\nSpayed / Neutered *\nReason for visit *"}
+                className="w-full rounded-xl px-4 py-3 text-white text-sm font-mono resize-none neon-input"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.2)", outline: "none" }}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass} style={labelStyle}>Payment Required at Booking?</label>
+              <div className="flex gap-3">
+                {["No", "Yes"].map(opt => (
+                  <button key={opt} onClick={() => setBooking(b => ({ ...b, payment_required: opt === "Yes" }))}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all"
+                    style={((opt === "Yes") === booking.payment_required)
+                      ? { background: "rgba(0,212,255,0.15)", color: "#00d4ff", border: "1px solid rgba(0,212,255,0.4)" }
+                      : { background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {booking.payment_required && (
+              <div>
+                <label className={labelClass} style={labelStyle}>Payment Details</label>
+                <input
+                  value={booking.payment_details}
+                  onChange={e => setBooking(b => ({ ...b, payment_details: e.target.value }))}
+                  placeholder="e.g. $50 deposit required via card on file before appointment is confirmed"
+                  className={inputClass} style={inputStyle}
+                />
+              </div>
+            )}
+
+            <button onClick={saveBooking} disabled={bookingSaving}
+              className="btn-neon w-full py-3 rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50">
+              {bookingSaved ? "✓ Saved!" : bookingSaving ? "Saving..." : "Save Booking Config →"}
+            </button>
+          </div>
         </div>
 
         {/* Business info */}

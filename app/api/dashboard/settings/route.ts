@@ -9,7 +9,7 @@ export async function GET() {
     const session = await requireAuth();
     const db = await getDb();
     const business = await db.prepare(
-      "SELECT name, industry, email, phone, address, city, state, timezone, tagline, website_url, website_scraped_at, website_content FROM businesses WHERE id = ?"
+      "SELECT name, industry, email, phone, address, city, state, timezone, tagline, website_url, website_scraped_at, website_content, booking_system, booking_fields_required, booking_payment_required, booking_payment_details FROM businesses WHERE id = ?"
     ).bind(session.businessId).first();
     return NextResponse.json({ business });
   } catch (err: any) {
