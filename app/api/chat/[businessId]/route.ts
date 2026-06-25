@@ -371,9 +371,16 @@ Use plain text only. Do not use markdown (no **, no #, no bullet dashes).`;
             try { bookingAgreements = JSON.parse(business.booking_agreements); } catch {}
           }
 
-          if (bookingAgreements.length > 0) {
-            // Widget will show agreement modal, then call /api/public/confirm-booking
-            pendingBooking = { date, time, name, email, petName, petType, service, businessId };
+          // If payment is required OR agreements exist, always send to widget payment flow — never auto-book
+          const requiresPaymentFlow = bookingAgreements.length > 0 || paymentRequired;
+
+          if (requiresPaymentFlow) {
+            // Widget will show agreement/payment modal, then call /api/public/confirm-booking
+            pendingBooking = { date, time, name, email, phone: bdata.phone ?? null, petName, petType,
+              petBreed: bdata.petBreed ?? null, petDob: bdata.petDob ?? null, petWeight: bdata.petWeight ?? null,
+              petSex: bdata.petSex ?? null, petSpayedNeutered: bdata.petSpayedNeutered ?? null, petColor: bdata.petColor ?? null,
+              pharmacyName: bdata.pharmacyName ?? null, pharmacyAddress: bdata.pharmacyAddress ?? null,
+              service, smsConsent: bdata.smsConsent ?? null, businessId };
           } else if (business.booking_webhook_url && business.booking_webhook_key) {
             // No agreements required — auto-book via webhook
             try {
