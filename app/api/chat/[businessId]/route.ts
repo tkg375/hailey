@@ -32,7 +32,7 @@ export async function POST(
     const db = await getDb();
 
     const business = await db.prepare(
-      "SELECT id, name, industry, phone, address, city, state, timezone, website_content, hailey_profile, availability_url, booking_url, booking_webhook_url, booking_webhook_key, booking_agreements FROM businesses WHERE id = ? AND active = 1"
+      "SELECT id, name, industry, phone, address, city, state, timezone, website_content, hailey_profile, availability_url, booking_url, booking_webhook_url, booking_webhook_key, booking_agreements, booking_system, booking_fields_required, booking_payment_required, booking_payment_details FROM businesses WHERE id = ? AND active = 1"
     ).bind(businessId).first() as any;
 
     if (!business) {
@@ -148,16 +148,17 @@ export async function POST(
       try { profile = JSON.parse(business.hailey_profile); } catch {}
     }
 
-    const paymentRequired = profile?.payment_at_booking?.required === true;
-    const paymentDetails = profile?.payment_at_booking?.details ?? "";
-    const blockBookingWithoutPayment = profile?.payment_at_booking?.block_booking_without_payment === true;
+    // Owner-defined booking config takes priority over AI-generated profile
+    const paymentRequired = business.booking_payment_required === 1 || profile?.payment_at_booking?.required === true;
+    const paymentDetails = business.booking_payment_details ?? profile?.payment_at_booking?.details ?? "";
+    const blockBookingWithoutPayment = paymentRequired;
 
-    const bookingInfoRequired = profile?.booking_info_required
-      ? `Collect this information before booking (in addition to name and email):\n${profile.booking_info_required}`
-      : `Collect these in order (ask one at a time):
-1. Preferred date and time — suggest times within the available windows shown above.
-2. Their full name and email address
-3. What service or concern they need`;
+    const ownerFields = business.booking_fields_required as string | null;
+    const bookingInfoRequired = ownerFields
+      ? `Collect the following information from the client — ask one question at a time, in this order:\n${ownerFields}`
+      : profile?.booking_info_required
+        ? `Collect this information before booking (ask one at a time):\n${profile.booking_info_required}`
+        : `Collect in order (one at a time):\n1. Preferred date and time\n2. Full name and email address\n3. What service or concern they need`;
 
     const systemPrompt = `You are Hailey, the AI receptionist for ${business.name}${business.city ? ` in ${business.city}${business.state ? ", " + business.state : ""}` : ""}.
 
