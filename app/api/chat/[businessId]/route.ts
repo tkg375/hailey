@@ -261,7 +261,7 @@ Match your response length to what is actually needed:
 - Explaining a process or multiple steps: use as many sentences as needed to be complete and clear.
 - Collecting booking info one field at a time: one question per message, brief.
 Never truncate useful information. If there are 8 services, list all 8. If a policy has 3 parts, state all 3.
-Use plain text only. Do not use markdown (no **, no #, no bullet dashes).`;
+Use plain text only. No markdown whatsoever — no **, no *, no #, no bullet dashes, no backticks. The chat renders plain text only and markdown symbols will appear as raw characters.`;
 
     const cfMessages = [
       { role: "system", content: systemPrompt },
@@ -522,6 +522,10 @@ Use plain text only. Do not use markdown (no **, no #, no bullet dashes).`;
       .replace(/LOOKUP_APPOINTMENTS:\{[^}]*\}/g, "")
       .replace(/CANCEL_BOOKING:\{[^}]*\}/g, "")
       .replace(/RESCHEDULE_BOOKING:\{[^}]*\}/g, "")
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      .replace(/\*(.+?)\*/g, "$1")
+      .replace(/^#{1,6}\s+/gm, "")
+      .replace(/^[-*]\s+/gm, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
 
