@@ -22,16 +22,15 @@ export async function PATCH(req: NextRequest) {
     const session = await requireAuth();
     const db = await getDb();
     const body = await req.json() as any;
-    const { name, tagline, phone, email, address, city, state, timezone, booking_system, booking_fields_required, booking_payment_required, booking_payment_details } = body;
+    const { name, tagline, phone, address, city, state, timezone, booking_system, booking_fields_required, booking_payment_required, booking_payment_details } = body;
     await db.prepare(`
       UPDATE businesses SET
         name = COALESCE(?, name),
-        tagline = ?,
-        phone = ?,
-        email = COALESCE(?, email),
-        address = ?,
-        city = ?,
-        state = ?,
+        tagline = COALESCE(?, tagline),
+        phone = COALESCE(?, phone),
+        address = COALESCE(?, address),
+        city = COALESCE(?, city),
+        state = COALESCE(?, state),
         timezone = COALESCE(?, timezone),
         booking_system = COALESCE(?, booking_system),
         booking_fields_required = COALESCE(?, booking_fields_required),
@@ -39,7 +38,7 @@ export async function PATCH(req: NextRequest) {
         booking_payment_details = COALESCE(?, booking_payment_details)
       WHERE id = ?
     `).bind(
-      name, tagline ?? null, phone ?? null, email, address ?? null, city ?? null, state ?? null, timezone,
+      name ?? null, tagline ?? null, phone ?? null, address ?? null, city ?? null, state ?? null, timezone ?? null,
       booking_system ?? null, booking_fields_required ?? null,
       booking_payment_required ?? null, booking_payment_details ?? null,
       session.businessId
