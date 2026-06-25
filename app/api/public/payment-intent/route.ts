@@ -20,15 +20,14 @@ export async function POST(req: NextRequest) {
 
     const db = await getDb();
     const business = await db.prepare(
-      "SELECT booking_webhook_url, booking_webhook_key FROM businesses WHERE id = ? AND active = 1"
+      "SELECT booking_payment_url, booking_webhook_key FROM businesses WHERE id = ? AND active = 1"
     ).bind(businessId).first() as any;
 
-    if (!business?.booking_webhook_url) {
+    if (!business?.booking_payment_url) {
       return NextResponse.json({ error: "Payment not configured for this business" }, { status: 400, headers: CORS });
     }
 
-    const paymentUrl = business.booking_webhook_url.replace(/\/guest$/, "/payment-intent");
-    const res = await fetch(paymentUrl, {
+    const res = await fetch(business.booking_payment_url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

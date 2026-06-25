@@ -30,7 +30,7 @@ export default function SettingsPage() {
   const [hoursSaving, setHoursSaving] = useState(false);
   const [bookingSaved, setBookingSaved] = useState(false);
   const [bookingSaving, setBookingSaving] = useState(false);
-  const [booking, setBooking] = useState({ system: "", fields: "", payment_required: false, payment_details: "", sms_consent_required: false, sms_consent_text: "", webhook_url: "", webhook_key: "", agreements: "" });
+  const [booking, setBooking] = useState({ system: "", fields: "", payment_required: false, payment_details: "", sms_consent_required: false, sms_consent_text: "", webhook_url: "", webhook_key: "", payment_url: "", agreements: "" });
 
   const loadHours = useCallback(async () => {
     const res = await fetch("/api/dashboard/hours");
@@ -57,6 +57,7 @@ export default function SettingsPage() {
         sms_consent_text: b.sms_consent_text ?? "",
         webhook_url: b.booking_webhook_url ?? "",
         webhook_key: b.booking_webhook_key ?? "",
+        payment_url: b.booking_payment_url ?? "",
         agreements: b.booking_agreements ?? "",
       });
     });
@@ -93,6 +94,7 @@ export default function SettingsPage() {
         sms_consent_text: booking.sms_consent_text || null,
         booking_webhook_url: booking.webhook_url || null,
         booking_webhook_key: booking.webhook_key || null,
+        booking_payment_url: booking.payment_url || null,
         booking_agreements: booking.agreements || null,
       }),
     });
@@ -348,6 +350,19 @@ export default function SettingsPage() {
                   onChange={e => setBooking(b => ({ ...b, webhook_key: e.target.value }))}
                   placeholder="Your HAILEY_WEBHOOK_SECRET value"
                   type="password"
+                  className={inputClass} style={inputStyle}
+                />
+              </div>
+            )}
+
+            {booking.webhook_url && (
+              <div>
+                <label className={labelClass} style={labelStyle}>Payment Intent URL <span style={{ fontWeight: 400, color: "rgba(255,255,255,0.25)" }}>(if site collects payment)</span></label>
+                <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>Where Hailey proxies Stripe PaymentIntent creation. Leave blank if no payment collected through Hailey.</p>
+                <input
+                  value={booking.payment_url}
+                  onChange={e => setBooking(b => ({ ...b, payment_url: e.target.value }))}
+                  placeholder="https://yoursite.com/api/hailey/payment-intent"
                   className={inputClass} style={inputStyle}
                 />
               </div>
