@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getDb } from "@/lib/db";
 import { chunkText, ingestChunks, deleteBusinessChunks } from "@/lib/vectorize";
-import { getOpenAI } from "@/lib/openai";
+import { chatCompletion } from "@/lib/openai";
 
 export const dynamic = "force-dynamic";
 
@@ -292,17 +292,10 @@ ${extractionPages}`;
 
     const ctx = await getCloudflareContext({ async: true });
 
-    const openai = getOpenAI();
-    const aiRes = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "You are a data extraction assistant. Always respond with valid JSON only, no explanation." },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 2048,
-    });
-
-    const rawText: string = aiRes.choices[0]?.message?.content ?? "";
+    const rawText: string = await chatCompletion([
+      { role: "system", content: "You are a data extraction assistant. Always respond with valid JSON only, no explanation." },
+      { role: "user", content: prompt },
+    ], 2048);
 
     if (!rawText) {
       return NextResponse.json({ error: "AI returned empty text." }, { status: 500 });
@@ -387,16 +380,10 @@ Return ONLY a JSON object, no markdown, no explanation:
 Website content:
 ${fullContent}`;
 
-    const profileRes = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "You are a business analyst setting up an AI receptionist. Always respond with valid JSON only." },
-        { role: "user", content: profilePrompt },
-      ],
-      max_tokens: 2000,
-    });
-
-    const profileRaw = profileRes.choices[0]?.message?.content ?? "";
+    const profileRaw = await chatCompletion([
+      { role: "system", content: "You are a business analyst setting up an AI receptionist. Always respond with valid JSON only." },
+      { role: "user", content: profilePrompt },
+    ], 2000).catch(() => "");
     const haileyProfile = profileRaw ? parseJson(profileRaw) : null;
 
     if (haileyProfile) {

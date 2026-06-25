@@ -1,5 +1,5 @@
 import { generateId } from "./db";
-import { getOpenAI } from "./openai";
+import { createEmbedding } from "./openai";
 
 const CHUNK_SIZE = 1800;
 const CHUNK_OVERLAP = 200;
@@ -21,13 +21,7 @@ export function chunkText(text: string, sourceLabel: string): { content: string;
 }
 
 async function embed(text: string): Promise<number[]> {
-  const openai = getOpenAI();
-  const res = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: text,
-    dimensions: 768,
-  });
-  return res.data[0]?.embedding ?? [];
+  return createEmbedding(text, 768);
 }
 
 export async function ingestChunks(

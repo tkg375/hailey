@@ -3,7 +3,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getDb, generateId } from "@/lib/db";
 import { sendEmail, appointmentConfirmationEmail } from "@/lib/email";
 import { retrieveRelevant } from "@/lib/vectorize";
-import { getOpenAI } from "@/lib/openai";
+import { chatCompletion } from "@/lib/openai";
 
 export const dynamic = "force-dynamic";
 
@@ -251,14 +251,8 @@ ${profile?.communication_style ? `## Communication Style\n${profile.communicatio
     await db.prepare("UPDATE conversations SET updated_at = datetime('now') WHERE id = ?").bind(convId).run();
 
     // Call OpenAI
-    const openai = getOpenAI();
-    const aiRes = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: cfMessages as any,
-      max_tokens: 512,
-    });
-
-    const assistantText: string = aiRes.choices[0]?.message?.content ?? "I'm having trouble responding right now. Please try again.";
+    const assistantText: string = await chatCompletion(cfMessages as any, 512)
+      .catch(() => "I'm having trouble responding right now. Please try again.");
 
     await db.prepare(
       "INSERT INTO conversation_messages (id, conversation_id, role, content, created_at) VALUES (?, ?, 'assistant', ?, datetime('now'))"
@@ -475,13 +469,7 @@ ${profile?.communication_style ? `## Communication Style\n${profile.communicatio
         { role: "user", content: `[SYSTEM: Appointment lookup complete]\n${apptSummary}\n\nPresent these appointments to the client in plain language (date, time, pet name, concern) — do NOT show the ID to the client. The ID is for internal use only. Ask what they want to do (cancel or reschedule which one). Use the ID internally when outputting CANCEL_BOOKING or RESCHEDULE_BOOKING tokens.` },
       ];
 
-      const followUpRes = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: followUpMessages as any,
-        max_tokens: 400,
-      });
-
-      const followUpText: string = followUpRes.choices[0]?.message?.content ?? apptSummary;
+      const followUpText: string = await chatCompletion(followUpMessages as any, 400).catch(() => apptSummary);
 
       finalAssistantText = followUpText;
       await db.prepare(
