@@ -454,6 +454,7 @@
     }
     setLoading(false);
     messages.scrollTop = messages.scrollHeight;
+    input.focus();
   }
 
   sendBtn.addEventListener('click', sendMessage);
