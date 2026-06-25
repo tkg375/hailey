@@ -290,8 +290,6 @@ Rules: only include info clearly present on the site. Max 15 services, 15 FAQs. 
 Website content:
 ${extractionPages}`;
 
-    const ctx = await getCloudflareContext({ async: true });
-
     const rawText: string = await chatCompletion([
       { role: "system", content: "You are a data extraction assistant. Always respond with valid JSON only, no explanation." },
       { role: "user", content: prompt },
@@ -313,6 +311,7 @@ ${extractionPages}`;
     ).bind(websiteUrl, JSON.stringify(extracted), session.businessId).run();
 
     // Re-ingest ALL crawled pages into Vectorize
+    const ctx = await getCloudflareContext({ async: true });
     const vectorize = (ctx.env as any).VECTORIZE;
     if (vectorize) {
       await deleteBusinessChunks(vectorize, db, session.businessId, "website").catch(() => {});
