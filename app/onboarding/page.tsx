@@ -206,9 +206,9 @@ export default function OnboardingPage() {
                   <label className="block text-xs font-bold mb-1.5 uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.5)" }}>Industry</label>
                   <select value={info.industry} onChange={e => setInfo(p => ({ ...p, industry: e.target.value }))}
                     className="w-full neon-input rounded-xl px-4 py-3 text-sm"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.2)", outline: "none", color: info.industry ? "white" : "rgba(255,255,255,0.3)", colorScheme: "dark" }}>
-                    <option value="">Select industry…</option>
-                    {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+                    style={{ background: "#0d1117", border: "1px solid rgba(0,212,255,0.2)", outline: "none", color: info.industry ? "white" : "rgba(255,255,255,0.3)" }}>
+                    <option value="" style={{ background: "#0d1117" }}>Select industry…</option>
+                    {INDUSTRIES.map(i => <option key={i} value={i} style={{ background: "#0d1117", color: "white" }}>{i}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -312,9 +312,9 @@ export default function OnboardingPage() {
                   <label className="block text-xs font-bold mb-1.5 uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.5)" }}>Booking system</label>
                   <select value={booking.system} onChange={e => setBooking(b => ({ ...b, system: e.target.value }))}
                     className="w-full neon-input rounded-xl px-4 py-3 text-sm"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.2)", outline: "none", color: booking.system ? "white" : "rgba(255,255,255,0.3)", colorScheme: "dark" }}>
-                    <option value="">Select your booking system…</option>
-                    {BOOKING_SYSTEMS.map(s => <option key={s} value={s}>{s}</option>)}
+                    style={{ background: "#0d1117", border: "1px solid rgba(0,212,255,0.2)", outline: "none", color: booking.system ? "white" : "rgba(255,255,255,0.3)" }}>
+                    <option value="" style={{ background: "#0d1117" }}>Select your booking system…</option>
+                    {BOOKING_SYSTEMS.map(s => <option key={s} value={s} style={{ background: "#0d1117", color: "white" }}>{s}</option>)}
                   </select>
                 </div>
 
