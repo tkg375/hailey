@@ -46,6 +46,6 @@ export async function PATCH(req: NextRequest) {
     ).run();
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: "Failed to save settings" }, { status: 500 });
+    return NextResponse.json({ error: err?.message ?? "Failed to save settings" }, { status: 500 });
   }
 }
