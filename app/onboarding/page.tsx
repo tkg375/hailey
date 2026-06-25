@@ -81,7 +81,7 @@ export default function OnboardingPage() {
     const res = await fetch("/api/dashboard/scrape", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ websiteUrl: url }),
     });
     const data = await res.json() as any;
     setScraping(false);
