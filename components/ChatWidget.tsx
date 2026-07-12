@@ -10,12 +10,15 @@ interface Props {
   businessId: string;
   businessName?: string;
   primaryColor?: string;
+  botName?: string;
+  botGreeting?: string;
+  hideBranding?: boolean;
 }
 
-export default function ChatWidget({ businessId, businessName = "Hailey", primaryColor = "#6366f1" }: Props) {
+export default function ChatWidget({ businessId, businessName = "Hailey", primaryColor = "#6366f1", botName = "Hailey", botGreeting, hideBranding = false }: Props) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: `Hi! I'm Hailey, your virtual assistant for ${businessName}. How can I help you today?` },
+    { role: "assistant", content: botGreeting || `Hi! I'm ${botName}, your virtual assistant for ${businessName}. How can I help you today?` },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -73,9 +76,9 @@ export default function ChatWidget({ businessId, businessName = "Hailey", primar
           {/* Header */}
           <div className="px-4 py-3 flex items-center justify-between text-white" style={{ background: primaryColor }}>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-sm font-bold">H</div>
+              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-sm font-bold">{botName.charAt(0).toUpperCase()}</div>
               <div>
-                <div className="text-sm font-semibold">Hailey</div>
+                <div className="text-sm font-semibold">{botName}</div>
                 <div className="text-xs opacity-75">{businessName}</div>
               </div>
             </div>
@@ -132,7 +135,7 @@ export default function ChatWidget({ businessId, businessName = "Hailey", primar
               </svg>
             </button>
           </div>
-          <div className="text-center pb-2 text-xs text-gray-300">Powered by Hailey AI</div>
+          {!hideBranding && <div className="text-center pb-2 text-xs text-gray-300">Powered by Hailey AI</div>}
         </div>
       )}
 

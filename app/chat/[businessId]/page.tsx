@@ -9,7 +9,7 @@ export default async function ChatPage({ params }: { params: Promise<{ businessI
   const db = await getDb();
 
   const business = await db.prepare(
-    "SELECT id, name, primary_color, tagline FROM businesses WHERE id = ? AND active = 1"
+    "SELECT id, name, primary_color, tagline, bot_name, bot_greeting, hide_branding FROM businesses WHERE id = ? AND active = 1"
   ).bind(businessId).first() as any;
 
   if (!business) notFound();
@@ -25,6 +25,9 @@ export default async function ChatPage({ params }: { params: Promise<{ businessI
         businessId={business.id}
         businessName={business.name}
         primaryColor={business.primary_color || "#6366f1"}
+        botName={business.bot_name || "Hailey"}
+        botGreeting={business.bot_greeting}
+        hideBranding={!!business.hide_branding}
       />
     </div>
   );

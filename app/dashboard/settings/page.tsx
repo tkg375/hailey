@@ -14,6 +14,8 @@ interface Business {
   booking_system: string; booking_fields_required: string;
   booking_payment_required: number; booking_payment_details: string;
   sms_consent_required: number; sms_consent_text: string;
+  primary_color: string; bot_name: string; bot_greeting: string; hide_branding: number;
+  custom_domain: string; custom_domain_status: string;
 }
 
 export default function SettingsPage() {
@@ -31,6 +33,13 @@ export default function SettingsPage() {
   const [bookingSaved, setBookingSaved] = useState(false);
   const [bookingSaving, setBookingSaving] = useState(false);
   const [booking, setBooking] = useState({ system: "", fields: "", payment_required: false, payment_details: "", sms_consent_required: false, sms_consent_text: "", webhook_url: "", webhook_key: "", payment_url: "", agreements: "" });
+  const [branding, setBranding] = useState({ color: "#00d4ff", bot_name: "Hailey", bot_greeting: "", hide_branding: false });
+  const [brandingSaved, setBrandingSaved] = useState(false);
+  const [brandingSaving, setBrandingSaving] = useState(false);
+  const [customDomain, setCustomDomain] = useState("");
+  const [domainStatus, setDomainStatus] = useState("none");
+  const [domainSaved, setDomainSaved] = useState(false);
+  const [domainSaving, setDomainSaving] = useState(false);
 
   const loadHours = useCallback(async () => {
     const res = await fetch("/api/dashboard/hours");
@@ -60,9 +69,47 @@ export default function SettingsPage() {
         payment_url: b.booking_payment_url ?? "",
         agreements: b.booking_agreements ?? "",
       });
+      setBranding({
+        color: b.primary_color ?? "#00d4ff",
+        bot_name: b.bot_name ?? "Hailey",
+        bot_greeting: b.bot_greeting ?? "",
+        hide_branding: !!b.hide_branding,
+      });
+      setCustomDomain(b.custom_domain ?? "");
+      setDomainStatus(b.custom_domain_status ?? "none");
     });
     loadHours();
   }, [loadHours]);
+
+  async function saveBranding() {
+    setBrandingSaving(true);
+    await fetch("/api/dashboard/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        primary_color: branding.color,
+        bot_name: branding.bot_name || "Hailey",
+        bot_greeting: branding.bot_greeting || null,
+        hide_branding: branding.hide_branding ? 1 : 0,
+      }),
+    });
+    setBrandingSaving(false);
+    setBrandingSaved(true);
+    setTimeout(() => setBrandingSaved(false), 3000);
+  }
+
+  async function saveDomain() {
+    setDomainSaving(true);
+    await fetch("/api/dashboard/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ custom_domain: customDomain || null }),
+    });
+    setDomainSaving(false);
+    setDomainStatus("pending");
+    setDomainSaved(true);
+    setTimeout(() => setDomainSaved(false), 3000);
+  }
 
   async function saveHours() {
     setHoursSaving(true);
@@ -379,6 +426,81 @@ export default function SettingsPage() {
             <button onClick={saveBooking} disabled={bookingSaving}
               className="btn-neon w-full py-3 rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50">
               {bookingSaved ? "✓ Saved!" : bookingSaving ? "Saving..." : "Save Booking Config →"}
+            </button>
+          </div>
+        </div>
+
+        {/* Widget Branding */}
+        <div className="glass rounded-2xl p-6 relative overflow-hidden" style={{ border: "1px solid rgba(255,0,110,0.2)" }}>
+          <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #ff006e, transparent)" }} />
+          <h2 className="font-black text-white mb-1">🎨 Widget Branding</h2>
+          <p className="text-xs mb-5" style={{ color: "rgba(255,255,255,0.4)" }}>
+            Give your chat widget its own name, greeting, and color — no code changes needed. Re-copy the embed script from the Widget page after saving.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label className={labelClass} style={labelStyle}>Bot Name</label>
+              <input value={branding.bot_name} onChange={e => setBranding(b => ({ ...b, bot_name: e.target.value }))}
+                placeholder="Hailey" className={inputClass} style={inputStyle} />
+            </div>
+            <div>
+              <label className={labelClass} style={labelStyle}>Greeting Message <span style={{ fontWeight: 400, color: "rgba(255,255,255,0.25)" }}>(optional — we have a default)</span></label>
+              <textarea value={branding.bot_greeting} onChange={e => setBranding(b => ({ ...b, bot_greeting: e.target.value }))}
+                rows={2} placeholder="Hey there! 👋 How can I help you today?"
+                className={inputClass} style={{ ...inputStyle, resize: "none" }} />
+            </div>
+            <div className="flex items-center gap-3">
+              <label className={labelClass} style={{ ...labelStyle, marginBottom: 0 }}>Accent Color</label>
+              <input type="color" value={branding.color} onChange={e => setBranding(b => ({ ...b, color: e.target.value }))}
+                className="w-10 h-10 rounded-lg cursor-pointer" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.1)" }} />
+              <span className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.4)" }}>{branding.color}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div>
+                <p className="text-sm font-bold text-white">Hide "Powered by Hailey AI"</p>
+                <p className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>White-label the widget footer (Growth plan)</p>
+              </div>
+              <button onClick={() => setBranding(b => ({ ...b, hide_branding: !b.hide_branding }))}
+                className="text-xs font-black uppercase px-3 py-2 rounded-lg transition-all"
+                style={branding.hide_branding
+                  ? { background: "rgba(0,212,255,0.15)", color: "#00d4ff", border: "1px solid rgba(0,212,255,0.4)" }
+                  : { background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                {branding.hide_branding ? "Hidden" : "Visible"}
+              </button>
+            </div>
+            <button onClick={saveBranding} disabled={brandingSaving}
+              className="btn-neon w-full py-3 rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50">
+              {brandingSaved ? "✓ Saved!" : brandingSaving ? "Saving..." : "Save Branding →"}
+            </button>
+          </div>
+        </div>
+
+        {/* Custom Domain */}
+        <div className="glass rounded-2xl p-6 relative overflow-hidden" style={{ border: "1px solid rgba(123,47,255,0.2)" }}>
+          <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #7b2fff, transparent)" }} />
+          <h2 className="font-black text-white mb-1">🌍 Custom Domain</h2>
+          <p className="text-xs mb-5" style={{ color: "rgba(255,255,255,0.4)" }}>
+            Serve your chat page from your own domain (e.g. <code style={{ color: "rgba(123,47,255,0.7)" }}>chat.yourbusiness.com</code>) instead of the default Hailey URL. Growth plan.
+          </p>
+          <div className="space-y-3">
+            <div>
+              <label className={labelClass} style={labelStyle}>Domain</label>
+              <input value={customDomain} onChange={e => setCustomDomain(e.target.value)}
+                placeholder="chat.yourbusiness.com" className={inputClass} style={inputStyle} />
+            </div>
+            {domainStatus !== "none" && (
+              <div className="rounded-xl p-3 text-xs" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.55)" }}>
+                Status: <strong style={{ color: domainStatus === "verified" ? "#22c55e" : "#fbbf24" }}>{domainStatus}</strong>
+                {domainStatus === "pending" && (
+                  <p className="mt-2">
+                    Point a CNAME record for this domain at <code style={{ color: "rgba(123,47,255,0.8)" }}>hailey.tgordo03.workers.dev</code>, then contact support to finish activation — this last step provisions SSL on our side and can't be self-served yet.
+                  </p>
+                )}
+              </div>
+            )}
+            <button onClick={saveDomain} disabled={domainSaving}
+              className="btn-neon w-full py-3 rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50">
+              {domainSaved ? "✓ Saved!" : domainSaving ? "Saving..." : "Save Domain →"}
             </button>
           </div>
         </div>

@@ -9,6 +9,12 @@
   var businessId = script.getAttribute('data-business-id');
   if (!businessId) return;
 
+  // Branding: business can override the bot's name, greeting, and "powered by" footer
+  var botName = script.getAttribute('data-name') || 'Hailey';
+  var botInitial = botName.charAt(0).toUpperCase();
+  var greeting = script.getAttribute('data-greeting') || ("Hey there! 👋 I'm " + botName + ". How can I help you today?");
+  var hideBranding = script.getAttribute('data-hide-branding') === 'true';
+
   // Theming: data-color sets primary accent; secondary defaults to a darker shade
   var primaryColor = script.getAttribute('data-color') || '#00d4ff';
   // Convert hex to RGB for rgba() use
@@ -215,7 +221,7 @@
 
   var rotatingLabel = document.createElement('div');
   rotatingLabel.id = 'hailey-rotating-label';
-  var rotatingTexts = ['Ask Hailey anything!', 'Book Now!', 'Need some help?'];
+  var rotatingTexts = ['Ask ' + botName + ' anything!', 'Book Now!', 'Need some help?'];
   var rotatingIndex = 0;
   rotatingLabel.textContent = rotatingTexts[0];
 
@@ -245,9 +251,9 @@
   panel.id = 'hailey-panel';
   panel.innerHTML = `
     <div id="hailey-header">
-      <div id="hailey-avatar">H</div>
+      <div id="hailey-avatar">${botInitial}</div>
       <div id="hailey-header-text">
-        <div id="hailey-header-name">HAILEY</div>
+        <div id="hailey-header-name">${botName.toUpperCase()}</div>
         <div id="hailey-header-status"><span id="hailey-dot"></span> Online now</div>
       </div>
       <button id="hailey-close" aria-label="Close chat">✕</button>
@@ -259,7 +265,7 @@
         <svg viewBox="0 0 24 24"><path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z"/></svg>
       </button>
     </div>
-    <div id="hailey-powered">Powered by <a href="https://hailey.tgordo03.workers.dev" target="_blank">Hailey AI</a></div>`;
+    ${hideBranding ? '' : '<div id="hailey-powered">Powered by <a href="https://hailey.tgordo03.workers.dev" target="_blank">Hailey AI</a></div>'}`;
 
   bubbleWrap.appendChild(rotatingLabel);
   bubbleWrap.appendChild(bubble);
@@ -279,7 +285,7 @@
     var row = document.createElement('div');
     row.className = 'h-msg ' + role;
     if (role === 'bot') {
-      row.innerHTML = '<div class="h-msg-avatar">H</div><div class="h-bubble"></div>';
+      row.innerHTML = '<div class="h-msg-avatar">' + botInitial + '</div><div class="h-bubble"></div>';
       row.querySelector('.h-bubble').textContent = text;
     } else {
       row.innerHTML = '<div class="h-bubble"></div>';
@@ -294,7 +300,7 @@
     var row = document.createElement('div');
     row.className = 'h-msg bot';
     row.id = 'hailey-typing';
-    row.innerHTML = '<div class="h-msg-avatar">H</div><div class="h-bubble h-typing"><span></span><span></span><span></span></div>';
+    row.innerHTML = '<div class="h-msg-avatar">' + botInitial + '</div><div class="h-bubble h-typing"><span></span><span></span><span></span></div>';
     messages.appendChild(row);
     messages.scrollTop = messages.scrollHeight;
   }
@@ -319,7 +325,7 @@
     rotatingLabel.style.display = 'none';
     if (messages.children.length === 0) {
       setTimeout(function () {
-        addMessage('bot', "Hey there! 👋 I'm Hailey. How can I help you today?");
+        addMessage('bot', greeting);
       }, 300);
     }
     setTimeout(function () { input.focus(); }, 350);

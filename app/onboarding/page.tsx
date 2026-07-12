@@ -147,7 +147,7 @@ export default function OnboardingPage() {
     if (!businessId) fetchBusinessId();
   }
 
-  const scriptTag = `<script src="https://hailey.tgordo03.workers.dev/widget.v2.js" data-business-id="${businessId}" async></script>`;
+  const scriptTag = `<script src="https://hailey.tgordo03.workers.dev/widget.v2.js" data-business-id="${businessId}" async></script>\n<!-- Want a different bot name, greeting, or color? Copy the customized tag from Dashboard → Widget after setup. -->`;
 
   function copyTag() {
     navigator.clipboard.writeText(scriptTag).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2500); });

@@ -9,7 +9,7 @@ export async function GET() {
     const session = await requireAuth();
     const db = await getDb();
     const business = await db.prepare(
-      "SELECT name, industry, email, phone, address, city, state, timezone, tagline, website_url, website_scraped_at, website_content, booking_system, booking_fields_required, booking_payment_required, booking_payment_details, sms_consent_required, sms_consent_text, booking_webhook_url, booking_webhook_key, booking_payment_url, booking_agreements FROM businesses WHERE id = ?"
+      "SELECT name, industry, email, phone, address, city, state, timezone, tagline, website_url, website_scraped_at, website_content, booking_system, booking_fields_required, booking_payment_required, booking_payment_details, sms_consent_required, sms_consent_text, booking_webhook_url, booking_webhook_key, booking_payment_url, booking_agreements, primary_color, bot_name, bot_greeting, hide_branding, custom_domain, custom_domain_status FROM businesses WHERE id = ?"
     ).bind(session.businessId).first();
     return NextResponse.json({ business });
   } catch (err: any) {
@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest) {
     const session = await requireAuth();
     const db = await getDb();
     const body = await req.json() as any;
-    const { name, tagline, phone, address, city, state, timezone, booking_system, booking_fields_required, booking_payment_required, booking_payment_details, sms_consent_required, sms_consent_text, booking_webhook_url, booking_webhook_key, booking_payment_url, booking_agreements } = body;
+    const { name, tagline, phone, address, city, state, timezone, booking_system, booking_fields_required, booking_payment_required, booking_payment_details, sms_consent_required, sms_consent_text, booking_webhook_url, booking_webhook_key, booking_payment_url, booking_agreements, primary_color, bot_name, bot_greeting, hide_branding, custom_domain } = body;
     await db.prepare(`
       UPDATE businesses SET
         name = COALESCE(?, name),
@@ -41,7 +41,13 @@ export async function PATCH(req: NextRequest) {
         booking_webhook_url = COALESCE(?, booking_webhook_url),
         booking_webhook_key = COALESCE(?, booking_webhook_key),
         booking_payment_url = COALESCE(?, booking_payment_url),
-        booking_agreements = COALESCE(?, booking_agreements)
+        booking_agreements = COALESCE(?, booking_agreements),
+        primary_color = COALESCE(?, primary_color),
+        bot_name = COALESCE(?, bot_name),
+        bot_greeting = COALESCE(?, bot_greeting),
+        hide_branding = COALESCE(?, hide_branding),
+        custom_domain = COALESCE(?, custom_domain),
+        custom_domain_status = CASE WHEN ? IS NOT NULL THEN 'pending' ELSE custom_domain_status END
       WHERE id = ?
     `).bind(
       name ?? null, tagline ?? null, phone ?? null, address ?? null, city ?? null, state ?? null, timezone ?? null,
@@ -49,6 +55,8 @@ export async function PATCH(req: NextRequest) {
       booking_payment_required ?? null, booking_payment_details ?? null,
       sms_consent_required ?? null, sms_consent_text ?? null,
       booking_webhook_url ?? null, booking_webhook_key ?? null, booking_payment_url ?? null, booking_agreements ?? null,
+      primary_color ?? null, bot_name ?? null, bot_greeting ?? null, hide_branding ?? null,
+      custom_domain ?? null, custom_domain ?? null,
       session.businessId
     ).run();
     return NextResponse.json({ success: true });

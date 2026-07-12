@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/auth";
+import { getDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -6,9 +7,19 @@ const HAILEY_URL = "https://hailey.tgordo03.workers.dev";
 
 export default async function WidgetPage() {
   const session = await requireAuth();
+  const db = await getDb();
+  const business = await db.prepare(
+    "SELECT primary_color, bot_name, bot_greeting, hide_branding FROM businesses WHERE id = ?"
+  ).bind(session.businessId).first() as any;
+
+  const attrs = [`data-business-id="${session.businessId}"`];
+  if (business?.primary_color) attrs.push(`data-color="${business.primary_color}"`);
+  if (business?.bot_name && business.bot_name !== "Hailey") attrs.push(`data-name="${business.bot_name}"`);
+  if (business?.bot_greeting) attrs.push(`data-greeting="${business.bot_greeting}"`);
+  if (business?.hide_branding) attrs.push(`data-hide-branding="true"`);
 
   const embedScript = `<!-- Hailey AI Receptionist -->
-<script src="${HAILEY_URL}/widget.v2.js" data-business-id="${session.businessId}" async></script>`;
+<script src="${HAILEY_URL}/widget.v2.js" ${attrs.join(" ")} async></script>`;
 
   const iframeEmbed = `<iframe
   src="${HAILEY_URL}/chat/${session.businessId}"
