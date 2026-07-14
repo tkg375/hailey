@@ -83,6 +83,39 @@ export function appointmentConfirmationEmail({
   `;
 }
 
+export function postVisitEmail({ businessName, clientName, serviceName }: { businessName: string; clientName: string; serviceName: string }) {
+  return `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #111;">Thanks for visiting ${businessName}!</h2>
+      <p>Hi ${clientName},</p>
+      <p>Thanks for coming in for your ${serviceName}. We'd love to see you again — just reply to this email or message us anytime to book your next visit.</p>
+      <p style="color: #666; font-size: 14px;">Powered by Hailey — the AI front desk assistant</p>
+    </div>
+  `;
+}
+
+export function noShowEmail({ businessName, clientName, serviceName }: { businessName: string; clientName: string; serviceName: string }) {
+  return `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #111;">We missed you!</h2>
+      <p>Hi ${clientName},</p>
+      <p>We had you down for a ${serviceName} at ${businessName} but didn't see you come in. No worries — reply to this email or message us to grab a new time.</p>
+      <p style="color: #666; font-size: 14px;">Powered by Hailey</p>
+    </div>
+  `;
+}
+
+export function reengagementEmail({ businessName, clientName }: { businessName: string; clientName: string }) {
+  return `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #111;">We miss you at ${businessName}!</h2>
+      <p>Hi ${clientName},</p>
+      <p>It's been a while since your last visit. We'd love to see you again — reply to this email or message us to book a new appointment.</p>
+      <p style="color: #666; font-size: 14px;">Powered by Hailey</p>
+    </div>
+  `;
+}
+
 export function appointmentReminderEmail({
   businessName,
   clientName,

@@ -1,6 +1,6 @@
 {
   "name": "hailey",
-  "main": ".open-next/worker.js",
+  "main": "worker-entry.ts",
   "compatibility_date": "2025-01-01",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
@@ -24,6 +24,6 @@
     }
   ],
   "triggers": {
-    "crons": ["0 4 * * *"]
+    "crons": ["0 4 * * *", "0 15 * * *"]
   }
 }

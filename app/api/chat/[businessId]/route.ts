@@ -39,12 +39,14 @@ export async function POST(
       return NextResponse.json({ error: "Business not found" }, { status: 404, headers: CORS });
     }
 
-    const [services, hours, faqs] = await Promise.all([
+    const [services, hours, faqs, learnings] = await Promise.all([
       db.prepare("SELECT name, description, duration_minutes, price_cents FROM services WHERE business_id = ? AND active = 1")
         .bind(businessId).all(),
       db.prepare("SELECT day_of_week, open_time, close_time, is_closed FROM business_hours WHERE business_id = ? ORDER BY day_of_week")
         .bind(businessId).all(),
       db.prepare("SELECT question, answer FROM business_faqs WHERE business_id = ? AND active = 1 ORDER BY times_asked DESC LIMIT 20")
+        .bind(businessId).all(),
+      db.prepare("SELECT category, summary FROM hailey_learnings WHERE business_id = ? ORDER BY occurrences DESC LIMIT 10")
         .bind(businessId).all(),
     ]);
 
@@ -73,6 +75,10 @@ export async function POST(
 
     const faqsText = faqs.results.length > 0
       ? faqs.results.map((f: any) => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n")
+      : "";
+
+    const learningsText = learnings.results.length > 0
+      ? learnings.results.map((l: any) => `- (${l.category}) ${l.summary}`).join("\n")
       : "";
 
     let websiteKnowledge = "";
@@ -192,6 +198,12 @@ ${profile?.capabilities ? `## Your Capabilities\n${profile.capabilities}` : ""}
 ${profile?.never_do ? `## Never Do\n${profile.never_do}` : ""}
 ${profile?.objection_handling ? `## Handling Objections\n${profile.objection_handling}` : ""}
 ${profile?.intake_requirements ? `## Intake Requirements\n${profile.intake_requirements}` : ""}
+${learningsText ? `## Things You've Learned From Past Conversations\nThese are patterns observed from real conversations at this business — use them to avoid repeating past friction:\n${learningsText}` : ""}
+
+## Escalating to a Human
+You handle everything yourself by default. But if the client explicitly asks for a human/owner, or you genuinely cannot help after a real attempt (not just a hard question — an actual dead end), say you're looping in the owner and that they'll hear back shortly, then output on its own line:
+ESCALATE:{"reason":"<short reason>"}
+Do not use this as a shortcut — only when truly stuck or asked for directly.
 
 ## Booking Instructions — CRITICAL
 You CAN and WILL book, cancel, and reschedule appointments directly. Do NOT say "I'll have someone follow up." You handle everything yourself.
@@ -356,6 +368,42 @@ Use plain text only. No markdown whatsoever — no **, no *, no #, no bullet das
       } catch {}
     }
 
+    const logTaskEvent = (eventType: string, detail?: string) =>
+      db.prepare(
+        "INSERT INTO hailey_task_events (id, business_id, conversation_id, event_type, detail, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))"
+      ).bind(generateId(), businessId, convId, eventType, detail ?? null).run().catch(() => {});
+
+    if (cancelMatch) logTaskEvent("cancelled");
+    if (rescheduleMatch) logTaskEvent("rescheduled");
+
+    // Handle escalation to a human
+    let escalated = false;
+    const escalateMatch = assistantText.match(/ESCALATE:(\{[^}]*\})/);
+    if (escalateMatch) {
+      escalated = true;
+      let reason = "Client needs human help";
+      try { reason = JSON.parse(escalateMatch[1]).reason || reason; } catch {}
+      await logTaskEvent("escalated", reason);
+      try {
+        const ownerRow = await db.prepare("SELECT email FROM owners WHERE business_id = ? LIMIT 1").bind(businessId).first<{ email: string }>();
+        if (ownerRow?.email) {
+          const recentTranscript = (history.results as any[]).slice(-6).map((m: any) => `${m.role}: ${m.content}`).join("\n");
+          await sendEmail({
+            to: ownerRow.email,
+            subject: `Hailey needs you — ${business.name}`,
+            html: `
+              <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+                <h2 style="color:#111;">Hailey escalated a conversation</h2>
+                <p><strong>Reason:</strong> ${reason}</p>
+                <div style="background:#f4f4f5;border-radius:8px;padding:16px;margin:16px 0;white-space:pre-wrap;font-size:13px;">${recentTranscript}\nuser: ${message}</div>
+                <p style="color:#666;font-size:13px;">Reply to this client directly or from your <a href="https://hailey.tgordo03.workers.dev/dashboard">Hailey dashboard</a>.</p>
+              </div>
+            `,
+          }).catch(() => {});
+        }
+      } catch {}
+    }
+
     let pendingBooking: any = null;
     let bookingAgreements: any[] = [];
 
@@ -428,6 +476,7 @@ Use plain text only. No markdown whatsoever — no **, no *, no #, no bullet das
 
               await db.prepare("UPDATE conversations SET status = 'booked' WHERE id = ?").bind(convId).run();
               bookingConfirmed = { appointmentId: apptId, date, time, name, email, service };
+              await logTaskEvent("booking_completed", service);
 
               // Send confirmation emails (non-blocking)
               const formattedDate = new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
@@ -522,6 +571,7 @@ Use plain text only. No markdown whatsoever — no **, no *, no #, no bullet das
       .replace(/LOOKUP_APPOINTMENTS:\{[^}]*\}/g, "")
       .replace(/CANCEL_BOOKING:\{[^}]*\}/g, "")
       .replace(/RESCHEDULE_BOOKING:\{[^}]*\}/g, "")
+      .replace(/ESCALATE:\{[^}]*\}/g, "")
       .replace(/\*\*(.+?)\*\*/g, "$1")
       .replace(/\*(.+?)\*/g, "$1")
       .replace(/^#{1,6}\s+/gm, "")
@@ -551,6 +601,10 @@ Use plain text only. No markdown whatsoever — no **, no *, no #, no bullet das
       displayText = "Done! Your appointment has been rescheduled and you'll receive a confirmation email with the updated details.";
     }
 
+    if (!displayText && escalated) {
+      displayText = "I've looped in the team on this one — they'll follow up with you directly shortly.";
+    }
+
     if (!displayText) displayText = "I'm having a bit of trouble right now. Please try again in a moment.";
 
     return NextResponse.json({
@@ -558,6 +612,7 @@ Use plain text only. No markdown whatsoever — no **, no *, no #, no bullet das
       conversationId: convId,
       bookingConfirmed,
       resendSent,
+      escalated: escalated || undefined,
       pendingBooking: pendingBooking ?? undefined,
       bookingAgreements: bookingAgreements.length > 0 ? bookingAgreements : undefined,
     }, { headers: CORS });

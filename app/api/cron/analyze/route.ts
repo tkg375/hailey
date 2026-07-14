@@ -45,6 +45,50 @@ export async function GET(req: NextRequest) {
       .map(m => `${m.role === "user" ? "Visitor" : "Hailey"}: ${m.content}`)
       .join("\n");
 
+    // Pull Hailey's own task outcomes (escalations, abandoned bookings, etc.) for the same window
+    const taskEvents = await db.prepare(`
+      SELECT event_type, detail FROM hailey_task_events
+      WHERE business_id = ? AND created_at >= datetime('now', '-7 days')
+    `).bind(bizId).all();
+
+    if (taskEvents.results.length >= 3) {
+      const eventsSummary = (taskEvents.results as any[])
+        .map(e => `${e.event_type}${e.detail ? `: ${e.detail}` : ""}`)
+        .join("\n");
+
+      const taskAnalysisPrompt = `You are analyzing an AI receptionist's own task performance for a local business, to help her improve.
+
+Task events from the last 7 days:
+${eventsSummary.slice(0, 6000)}
+
+Respond with ONLY valid JSON in this exact format:
+{
+  "learnings": [
+    {"category": "friction_point", "summary": "Clients often abandon booking when asked for payment upfront"},
+    {"category": "escalation_pattern", "summary": "Escalates often when clients ask about insurance coverage"}
+  ]
+}
+category must be one of: friction_point, escalation_pattern, success_pattern.
+Only include real, specific, actionable patterns — up to 5. If nothing meaningful stands out, return an empty array.`;
+
+      try {
+        const taskResponseText: string = await chatCompletion([{ role: "user", content: taskAnalysisPrompt }], 512);
+        const taskJsonMatch = taskResponseText.match(/\{[\s\S]*\}/);
+        if (taskJsonMatch) {
+          const taskParsed = JSON.parse(taskJsonMatch[0]);
+          for (const l of taskParsed.learnings || []) {
+            if (!l.category || !l.summary) continue;
+            await db.prepare(`
+              INSERT INTO hailey_learnings (id, business_id, category, summary, occurrences, last_seen_at, updated_at)
+              VALUES (?, ?, ?, ?, 1, datetime('now'), datetime('now'))
+              ON CONFLICT(business_id, category, summary)
+              DO UPDATE SET occurrences = occurrences + 1, last_seen_at = datetime('now'), updated_at = datetime('now')
+            `).bind(generateId(), bizId, l.category, l.summary).run();
+          }
+        }
+      } catch {}
+    }
+
     // Use Cloudflare Workers AI (Llama) to extract patterns
     const analysisPrompt = `You are analyzing customer service conversations for a local business. Extract insights from these conversations.
 

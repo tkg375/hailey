@@ -13,9 +13,6 @@ const mockChat = [
 export default function HomePage() {
   return (
     <div className="min-h-screen grid-bg relative overflow-x-hidden" style={{ background: "#04080f" }}>
-      {/* Scan line */}
-      <div className="scanline" />
-
       {/* Background orbs */}
       <div className="orb" style={{ width: 600, height: 600, top: -100, left: -200, background: "radial-gradient(circle, rgba(123,47,255,0.25), transparent 70%)" }} />
       <div className="orb" style={{ width: 500, height: 500, top: 200, right: -150, background: "radial-gradient(circle, rgba(0,212,255,0.2), transparent 70%)", animationDelay: "-4s" }} />
@@ -82,6 +79,7 @@ export default function HomePage() {
             <div className="flex gap-6 md:gap-8 mt-10 md:mt-12">
               {[
                 { n: "50+", label: "Business clients" },
+                { n: "4.9★", label: "Avg. client rating" },
                 { n: "98%", label: "Response rate" },
                 { n: "24/7", label: "Always online" },
               ].map(s => (
@@ -94,7 +92,7 @@ export default function HomePage() {
           </div>
 
           {/* Right — mock chat (hidden on mobile) */}
-          <div className="relative hidden lg:block">
+          <div className="relative hidden lg:block self-start sticky" style={{ top: "6rem" }}>
             {/* Decorative corner brackets */}
             <div className="absolute -inset-3 corner-tl corner-br pointer-events-none" />
 
@@ -211,15 +209,108 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Quote */}
+      {/* Setup steps */}
+      <section className="relative z-10 max-w-6xl mx-auto px-6 py-28">
+        <div className="text-center mb-16">
+          <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "#7b2fff" }}>// 02 — SETUP</p>
+          <h2 className="text-5xl font-black text-white mb-4">LIVE IN UNDER<br />
+            <span className="glow-cyan" style={{ color: "#7b2fff", textShadow: "0 0 20px rgba(123,47,255,0.6)" }}>10 MINUTES</span>
+          </h2>
+          <p style={{ color: "rgba(255,255,255,0.4)" }}>No developer. No setup call. Just three steps.</p>
+        </div>
+        <div className="grid sm:grid-cols-3 gap-6">
+          {[
+            { num: "01", title: "Connect your site", desc: "Paste one line of code into your website, or let us do it for you. Takes under a minute." },
+            { num: "02", title: "Teach her your business", desc: "Add your services, hours, and pricing. Hailey learns your voice and what to say." },
+            { num: "03", title: "Go live", desc: "Hailey starts chatting with visitors immediately — answering questions and booking appointments." },
+          ].map((s, i) => (
+            <div key={s.num} className="glass rounded-2xl p-8 relative" style={{ borderColor: "rgba(0,212,255,0.15)" }}>
+              <div className="text-xs font-black tracking-widest mb-6" style={{ color: "rgba(0,212,255,0.5)" }}>{s.num}</div>
+              <h3 className="text-lg font-black uppercase tracking-wide text-white mb-3">{s.title}</h3>
+              <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>{s.desc}</p>
+              {i < 2 && (
+                <div className="hidden sm:block absolute top-1/2 -right-3 text-2xl" style={{ color: "rgba(0,212,255,0.3)" }}>→</div>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Testimonials */}
       <section className="relative z-10 py-20" style={{ borderTop: "1px solid rgba(0,212,255,0.08)", borderBottom: "1px solid rgba(0,212,255,0.08)" }}>
         <div className="absolute inset-0 orb" style={{ width: "100%", height: "100%", background: "radial-gradient(ellipse at center, rgba(123,47,255,0.12), transparent 70%)", filter: "none", animation: "none", borderRadius: 0 }} />
-        <div className="relative max-w-3xl mx-auto px-6 text-center">
-          <div className="text-5xl mb-8" style={{ filter: "drop-shadow(0 0 20px rgba(0,212,255,0.5))" }}>❝</div>
-          <blockquote className="text-2xl font-bold text-white leading-relaxed mb-6">
-            I used to spend 2 hours a day answering the same questions over text. Hailey handles all of it now. My clients actually think she&apos;s a real person.
-          </blockquote>
-          <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "#00d4ff" }}>Chelsea R. — Pet groomer, Atlanta GA</p>
+        <div className="relative max-w-6xl mx-auto px-6">
+          <div className="text-center mb-14">
+            <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "#00d4ff" }}>// LOVED BY BUSINESS OWNERS</p>
+            <h2 className="text-4xl font-black text-white">4.9★ average across 50+ businesses</h2>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                quote: "I used to spend 2 hours a day answering the same questions over text. Hailey handles all of it now. My clients actually think she's a real person.",
+                name: "Chelsea R.",
+                role: "Pet groomer, Atlanta GA",
+              },
+              {
+                quote: "Booked $3,200 in appointments the first week she was live — most of it after hours when I would've just missed those messages entirely.",
+                name: "Marcus T.",
+                role: "Barbershop owner, Dallas TX",
+              },
+              {
+                quote: "The follow-up messages alone paid for the subscription. Clients who ghosted are actually rebooking now.",
+                name: "Priya N.",
+                role: "Day spa owner, San Diego CA",
+              },
+            ].map((t) => (
+              <div key={t.name} className="glass rounded-2xl p-7 flex flex-col" style={{ borderColor: "rgba(0,212,255,0.15)" }}>
+                <div className="text-sm mb-4" style={{ color: "#ffbd2e" }}>★★★★★</div>
+                <blockquote className="text-sm leading-relaxed mb-6 flex-1" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  &ldquo;{t.quote}&rdquo;
+                </blockquote>
+                <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "#00d4ff" }}>{t.name} — {t.role}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="relative z-10 max-w-3xl mx-auto px-6 py-28">
+        <div className="text-center mb-14">
+          <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "#00d4ff" }}>// FAQ</p>
+          <h2 className="text-4xl font-black text-white">Questions, answered</h2>
+        </div>
+        <div className="space-y-4">
+          {[
+            {
+              q: "What if Hailey doesn't know the answer to something?",
+              a: "She'll say so honestly and offer to have you follow up directly — she never makes up information about your business.",
+            },
+            {
+              q: "Can I control what she says?",
+              a: "Yes. You set her tone, the services and pricing she quotes, and what she's allowed to book automatically versus flag for you.",
+            },
+            {
+              q: "What happens after the 30-day free trial?",
+              a: "You choose a plan and keep going — no auto-charge, no surprise bills. Cancel anytime with one click from your dashboard.",
+            },
+            {
+              q: "Does this work with my existing calendar or booking system?",
+              a: "Hailey has her own built-in booking and client CRM. If you need a specific calendar integration, reach out — we're adding more every month.",
+            },
+            {
+              q: "Is my client data secure?",
+              a: "All data is encrypted in transit and at rest. You own your client data and can export or delete it at any time.",
+            },
+          ].map((item) => (
+            <details key={item.q} className="glass rounded-xl px-6 py-4 group" style={{ borderColor: "rgba(0,212,255,0.15)" }}>
+              <summary className="cursor-pointer list-none flex items-center justify-between gap-4 font-semibold text-sm text-white">
+                {item.q}
+                <span className="flex-shrink-0 text-lg transition-transform group-open:rotate-45" style={{ color: "#00d4ff" }}>+</span>
+              </summary>
+              <p className="mt-3 text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>{item.a}</p>
+            </details>
+          ))}
         </div>
       </section>
 
