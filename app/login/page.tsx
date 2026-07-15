@@ -30,8 +30,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen grid-bg flex items-center justify-center px-4 py-10 relative overflow-hidden" style={{ background: "#04080f" }}>
-      <div className="scanline" />
-
       {/* Orbs */}
       <div className="orb" style={{ width: 500, height: 500, top: -150, left: -200, background: "radial-gradient(circle, rgba(123,47,255,0.25), transparent 70%)" }} />
       <div className="orb" style={{ width: 400, height: 400, bottom: -100, right: -100, background: "radial-gradient(circle, rgba(0,212,255,0.2), transparent 70%)", animationDelay: "-5s" }} />
