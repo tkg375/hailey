@@ -37,7 +37,7 @@ export default async function WidgetPage() {
         </p>
       </div>
 
-      <div className="space-y-6 max-w-2xl">
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
         {/* Floating bubble */}
         <div className="glass rounded-2xl p-6 relative overflow-hidden" style={{ border: "1px solid rgba(0,212,255,0.2)" }}>
           <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #00d4ff, transparent)" }} />
@@ -46,7 +46,7 @@ export default async function WidgetPage() {
               <h3 className="font-black text-white">Floating Bubble</h3>
               <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Recommended — adds a chat bubble in the corner of any page</p>
             </div>
-            <span className="text-xs font-black uppercase px-2 py-1 rounded-lg" style={{ background: "rgba(0,212,255,0.12)", color: "#00d4ff", border: "1px solid rgba(0,212,255,0.3)" }}>
+            <span className="text-xs font-black uppercase px-2 py-1 rounded-lg flex-shrink-0" style={{ background: "rgba(0,212,255,0.12)", color: "#00d4ff", border: "1px solid rgba(0,212,255,0.3)" }}>
               Recommended
             </span>
           </div>
@@ -71,22 +71,22 @@ export default async function WidgetPage() {
         </div>
 
         {/* API */}
-        <div className="glass rounded-2xl p-6 relative overflow-hidden" style={{ border: "1px solid rgba(255,0,110,0.2)" }}>
+        <div className="glass rounded-2xl p-6 relative overflow-hidden lg:col-span-2" style={{ border: "1px solid rgba(255,0,110,0.2)" }}>
           <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #ff006e, transparent)" }} />
           <div className="mb-4">
             <h3 className="font-black text-white">Direct API</h3>
             <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Build your own UI and call Hailey's API directly</p>
           </div>
-          <div className="space-y-3">
+          <div className="grid md:grid-cols-3 gap-3">
             <div>
               <p className="text-xs font-black uppercase tracking-widest mb-1.5" style={{ color: "rgba(255,0,110,0.7)" }}>Endpoint</p>
-              <pre className="rounded-xl p-3 text-xs" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.06)", color: "#a3e635", fontFamily: "monospace" }}>
+              <pre className="rounded-xl p-3 text-xs overflow-x-auto" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.06)", color: "#a3e635", fontFamily: "monospace" }}>
 {`POST ${HAILEY_URL}/api/chat/${session.businessId}`}
               </pre>
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-widest mb-1.5" style={{ color: "rgba(255,0,110,0.7)" }}>Request Body</p>
-              <pre className="rounded-xl p-3 text-xs" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.06)", color: "#a3e635", fontFamily: "monospace" }}>
+              <pre className="rounded-xl p-3 text-xs overflow-x-auto" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.06)", color: "#a3e635", fontFamily: "monospace" }}>
 {`{
   "message": "Do you have availability Saturday?",
   "conversationId": "optional-to-keep-context"
@@ -95,7 +95,7 @@ export default async function WidgetPage() {
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-widest mb-1.5" style={{ color: "rgba(255,0,110,0.7)" }}>Response</p>
-              <pre className="rounded-xl p-3 text-xs" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.06)", color: "#a3e635", fontFamily: "monospace" }}>
+              <pre className="rounded-xl p-3 text-xs overflow-x-auto" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.06)", color: "#a3e635", fontFamily: "monospace" }}>
 {`{
   "reply": "Yes! We have 10am, 1pm, and 3:30pm open.",
   "conversationId": "conv_abc123",
@@ -107,7 +107,7 @@ export default async function WidgetPage() {
         </div>
 
         {/* Business ID */}
-        <div className="glass rounded-2xl p-4 flex items-center gap-4" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="glass rounded-2xl p-4 flex items-center gap-4 lg:col-span-2" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
             <span className="font-black uppercase tracking-widest" style={{ color: "rgba(0,212,255,0.5)" }}>Your Business ID</span><br />
             <span className="font-mono" style={{ color: "rgba(255,255,255,0.6)" }}>{session.businessId}</span>

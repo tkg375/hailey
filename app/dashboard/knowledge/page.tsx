@@ -80,22 +80,21 @@ export default function KnowledgePage() {
         </p>
       </div>
 
-      <div className="space-y-6 max-w-3xl">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4 mb-6 max-w-2xl">
+        {[
+          { label: "Total chunks", value: chunks.length, color: "#00d4ff" },
+          { label: "From website", value: websiteCount, color: "#7b2fff" },
+          { label: "Custom added", value: manualCount, color: "#22c55e" },
+        ].map(s => (
+          <div key={s.label} className="glass rounded-2xl p-4 text-center" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="text-2xl font-black" style={{ color: s.color }}>{s.value}</div>
+            <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: "Total chunks", value: chunks.length, color: "#00d4ff" },
-            { label: "From website", value: websiteCount, color: "#7b2fff" },
-            { label: "Custom added", value: manualCount, color: "#22c55e" },
-          ].map(s => (
-            <div key={s.label} className="glass rounded-2xl p-4 text-center" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
-              <div className="text-2xl font-black" style={{ color: s.color }}>{s.value}</div>
-              <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-
+      <div className="grid lg:grid-cols-[minmax(0,380px)_1fr] gap-6 items-start">
         {/* Add custom knowledge */}
         <div className="glass rounded-2xl p-6 relative overflow-hidden" style={{ border: "1px solid rgba(123,47,255,0.25)" }}>
           <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #7b2fff, transparent)" }} />
@@ -116,7 +115,7 @@ export default function KnowledgePage() {
               value={customText}
               onChange={e => setCustomText(e.target.value)}
               placeholder="Paste any text here — FAQs, policies, service descriptions, staff info, pricing, promotions..."
-              rows={6}
+              rows={8}
               className="w-full rounded-xl px-4 py-3 text-sm text-white resize-none"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(123,47,255,0.2)", outline: "none" }}
             />
@@ -126,7 +125,7 @@ export default function KnowledgePage() {
             <button
               type="submit"
               disabled={adding || !customText.trim()}
-              className="btn-neon px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest disabled:opacity-50"
+              className="btn-neon px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest disabled:opacity-50 w-full"
             >
               {adding ? "Teaching Hailey..." : "Teach Hailey →"}
             </button>
@@ -158,7 +157,7 @@ export default function KnowledgePage() {
               <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.2)" }}>Sync your website in Settings or add custom text above</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid sm:grid-cols-2 gap-3">
               {chunks.map(chunk => {
                 const sc = sourceColor(chunk.source_type);
                 return (

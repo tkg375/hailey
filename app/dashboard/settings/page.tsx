@@ -40,6 +40,7 @@ export default function SettingsPage() {
   const [domainStatus, setDomainStatus] = useState("none");
   const [domainSaved, setDomainSaved] = useState(false);
   const [domainSaving, setDomainSaving] = useState(false);
+  const [tab, setTab] = useState<"info" | "knowledge" | "hours" | "booking" | "branding" | "domain">("info");
 
   const loadHours = useCallback(async () => {
     const res = await fetch("/api/dashboard/hours");
@@ -192,13 +193,38 @@ export default function SettingsPage() {
 
   return (
     <>
-      <div className="mb-8">
+      <div className="mb-6">
         <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "rgba(0,212,255,0.5)" }}>// SETTINGS</p>
         <h1 className="text-2xl md:text-3xl font-black text-white">Business Settings</h1>
       </div>
 
-      <div className="space-y-6 max-w-2xl">
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-2 mb-6 pb-4 overflow-x-auto" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+        {([
+          { id: "info", label: "Business Info", icon: "🏢" },
+          { id: "knowledge", label: "Website Knowledge", icon: "🌐" },
+          { id: "hours", label: "Hours", icon: "🕐" },
+          { id: "booking", label: "How You Book", icon: "📋" },
+          { id: "branding", label: "Widget Branding", icon: "🎨" },
+          { id: "domain", label: "Custom Domain", icon: "🌍" },
+        ] as const).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all flex-shrink-0"
+            style={tab === t.id
+              ? { background: "rgba(0,212,255,0.12)", color: "#00d4ff", border: "1px solid rgba(0,212,255,0.35)" }
+              : { background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }
+            }
+          >
+            <span>{t.icon}</span>{t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="max-w-3xl">
         {/* Website Knowledge */}
+        {tab === "knowledge" && (
         <div className="glass rounded-2xl p-6 relative overflow-hidden" style={{ border: "1px solid rgba(0,212,255,0.25)" }}>
           <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #00d4ff, #7b2fff, transparent)" }} />
           <h2 className="font-black text-white mb-1">🌐 Website Knowledge</h2>
@@ -247,8 +273,10 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* Hours / Availability */}
+        {tab === "hours" && (
         <div className="glass rounded-2xl p-6 relative overflow-hidden" style={{ border: "1px solid rgba(123,47,255,0.2)" }}>
           <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #7b2fff, transparent)" }} />
           <h2 className="font-black text-white mb-1">🕐 Availability Hours</h2>
@@ -290,8 +318,10 @@ export default function SettingsPage() {
             {hoursSaved ? "✓ Hours Saved!" : hoursSaving ? "Saving..." : "Save Hours →"}
           </button>
         </div>
+        )}
 
         {/* How You Book */}
+        {tab === "booking" && (
         <div className="glass rounded-2xl p-6 relative overflow-hidden" style={{ border: "1px solid rgba(0,212,255,0.2)" }}>
           <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #00d4ff, transparent)" }} />
           <h2 className="font-black text-white mb-1">📋 How You Book</h2>
@@ -429,8 +459,10 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+        )}
 
         {/* Widget Branding */}
+        {tab === "branding" && (
         <div className="glass rounded-2xl p-6 relative overflow-hidden" style={{ border: "1px solid rgba(255,0,110,0.2)" }}>
           <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #ff006e, transparent)" }} />
           <h2 className="font-black text-white mb-1">🎨 Widget Branding</h2>
@@ -474,8 +506,10 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+        )}
 
         {/* Custom Domain */}
+        {tab === "domain" && (
         <div className="glass rounded-2xl p-6 relative overflow-hidden" style={{ border: "1px solid rgba(123,47,255,0.2)" }}>
           <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #7b2fff, transparent)" }} />
           <h2 className="font-black text-white mb-1">🌍 Custom Domain</h2>
@@ -504,8 +538,10 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+        )}
 
         {/* Business info */}
+        {tab === "info" && (
         <form onSubmit={handleSave} className="glass rounded-2xl p-6 space-y-4 relative overflow-hidden" style={{ border: "1px solid rgba(0,212,255,0.12)" }}>
           <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, rgba(0,212,255,0.3), transparent)" }} />
           <h2 className="font-black text-white">Business Info</h2>
@@ -547,6 +583,7 @@ export default function SettingsPage() {
             {saved ? "✓ Saved!" : saving ? "Saving..." : "Save Settings →"}
           </button>
         </form>
+        )}
       </div>
     </>
   );
