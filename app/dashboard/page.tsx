@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import Link from "next/link";
+import HaileyMark from "../HaileyMark";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export default async function DashboardPage() {
       {/* Mobile top bar */}
       <div className="lg:hidden flex items-center justify-between mb-6 pb-4" style={{ borderBottom: "1px solid rgba(0,212,255,0.1)" }}>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-black" style={{ background: "linear-gradient(135deg, #00d4ff, #7b2fff)" }}>H</div>
+          <HaileyMark size={28} />
           <span className="font-black text-sm truncate max-w-[180px]" style={{ color: "#00d4ff" }}>{session.businessName}</span>
         </div>
         <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import MobileNav from "./MobileNav";
+import HaileyMark from "./HaileyMark";
 
 const mockChat = [
   { role: "visitor", text: "Hi! Do you have anything open this Saturday for a blowout?" },
@@ -22,8 +23,8 @@ export default function HomePage() {
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 max-w-7xl mx-auto">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-black" style={{ background: "linear-gradient(135deg, #00d4ff, #7b2fff)" }}>H</div>
-            <div className="absolute inset-0 rounded-lg blur-md opacity-60" style={{ background: "linear-gradient(135deg, #00d4ff, #7b2fff)" }} />
+            <div className="absolute inset-0 blur-md opacity-50" style={{ background: "linear-gradient(135deg, #00d4ff, #7b2fff)" }} />
+            <HaileyMark size={36} />
           </div>
           <span className="text-xl font-black tracking-wider" style={{ color: "#00d4ff" }}>HAILEY</span>
         </div>

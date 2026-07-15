@@ -1,4 +1,5 @@
 import Link from "next/link";
+import HaileyMark from "../HaileyMark";
 
 export default function RegisterPage() {
   return (
@@ -9,8 +10,8 @@ export default function RegisterPage() {
       <div className="relative z-10 text-center max-w-md">
         <Link href="/" className="inline-flex items-center gap-3 justify-center mb-10">
           <div className="relative">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-lg" style={{ background: "linear-gradient(135deg, #00d4ff, #7b2fff)" }}>H</div>
-            <div className="absolute inset-0 rounded-xl blur-lg opacity-60" style={{ background: "linear-gradient(135deg, #00d4ff, #7b2fff)" }} />
+            <div className="absolute inset-0 blur-lg opacity-50" style={{ background: "linear-gradient(135deg, #00d4ff, #7b2fff)" }} />
+            <HaileyMark size={40} />
           </div>
           <span className="text-2xl font-black tracking-widest glow-cyan" style={{ color: "#00d4ff" }}>HAILEY</span>
         </Link>
