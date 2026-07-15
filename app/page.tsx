@@ -45,15 +45,6 @@ export default function HomePage() {
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           {/* Left */}
           <div>
-            {/* Status badge */}
-            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full mb-8 glass text-xs font-semibold tracking-widest uppercase" style={{ color: "#00d4ff" }}>
-              <span className="relative flex h-2 w-2">
-                <span className="pulse-ring absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400" />
-              </span>
-              Live on 50+ business websites
-            </div>
-
             <h1 className="font-black leading-none mb-6" style={{ fontSize: "clamp(3rem, 6vw, 5.5rem)" }}>
               <span className="block text-white">SHE</span>
               <span className="block text-white">ANSWERS.</span>
