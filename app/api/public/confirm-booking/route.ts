@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const db = await getDb();
 
     const business = await db.prepare(
-      "SELECT booking_webhook_url, booking_webhook_key, booking_agreements FROM businesses WHERE id = ? AND active = 1"
+      "SELECT booking_webhook_url, booking_webhook_key, booking_agreements, booking_payment_required FROM businesses WHERE id = ? AND active = 1"
     ).bind(businessId).first() as any;
 
     if (!business) {
@@ -38,6 +38,11 @@ export async function POST(req: NextRequest) {
       if (!required.every(k => accepted.has(k))) {
         return NextResponse.json({ error: "All agreements must be accepted" }, { status: 400, headers: CORS });
       }
+    }
+
+    // Payment is required for this business — refuse to confirm without proof of a completed payment
+    if (business.booking_payment_required === 1 && !paymentIntentId) {
+      return NextResponse.json({ error: "Payment is required to confirm this booking" }, { status: 400, headers: CORS });
     }
 
     const { date, time, name, email, phone, petName, petType, petBreed, petDob, petWeight, petSex, petSpayedNeutered, petColor, pharmacyName, pharmacyAddress, pharmacyPhone, service, smsConsent } = pendingBooking;
