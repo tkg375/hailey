@@ -92,7 +92,8 @@ export default function HomePage() {
           </div>
 
           {/* Right — mock chat (hidden on mobile) */}
-          <div className="relative hidden lg:block self-start sticky" style={{ top: "6rem" }}>
+          <div className="relative hidden lg:block">
+            <div className="sticky" style={{ top: "6rem" }}>
             {/* Decorative corner brackets */}
             <div className="absolute -inset-3 corner-tl corner-br pointer-events-none" />
 
@@ -145,6 +146,7 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           </div>
         </div>
