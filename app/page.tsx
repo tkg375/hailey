@@ -92,8 +92,8 @@ export default function HomePage() {
           </div>
 
           {/* Right — mock chat (hidden on mobile) */}
-          <div className="hidden lg:block self-stretch">
-            <div className="sticky" style={{ top: "6rem" }}>
+          <div className="relative hidden lg:block">
+            <div>
             {/* Decorative corner brackets */}
             <div className="absolute -inset-3 corner-tl corner-br pointer-events-none" />
 
