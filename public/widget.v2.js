@@ -490,6 +490,7 @@
         '<div id="hailey-payment-step">' +
           '<div id="hailey-card-element"></div>' +
           '<button id="hailey-pay-btn">Pay $60 & Confirm Appointment →</button>' +
+          '<button id="hailey-noPayment-btn" style="display:none;">Confirm Appointment →</button>' +
           '<div id="hailey-pay-error"></div>' +
         '</div>' +
         '<div id="hailey-agreement-note">Secured by Stripe · Agreements recorded with timestamp</div>' +
@@ -501,6 +502,7 @@
     var confirmBtn = overlay.querySelector('#hailey-agreement-confirm');
     var paymentStep = overlay.querySelector('#hailey-payment-step');
     var payBtn = overlay.querySelector('#hailey-pay-btn');
+    var noPaymentBtn = overlay.querySelector('#hailey-noPayment-btn');
     var payError = overlay.querySelector('#hailey-pay-error');
 
     var stripeInstance = null;
@@ -534,7 +536,13 @@
         });
         var piData = await piRes.json();
         if (!piRes.ok || !piData.clientSecret) {
-          payError.textContent = piData.error || 'Could not load payment form. Please try again.';
+          // No payment configured for this business — this business only requires
+          // agreement acceptance, not payment. Offer a direct confirm instead of
+          // leaving the visitor stuck on a payment form that will never load.
+          payBtn.style.display = 'none';
+          noPaymentBtn.style.display = '';
+          agreedKeys = Object.keys(checked).filter(function(k) { return checked[k]; });
+          agreedAt = Math.floor(Date.now() / 1000);
           return;
         }
         clientSecret = piData.clientSecret;
@@ -650,6 +658,38 @@
         payError.textContent = 'Connection error. Please try again.';
         payBtn.disabled = false;
         payBtn.textContent = 'Pay $60 & Confirm Appointment →';
+      }
+    });
+
+    noPaymentBtn.addEventListener('click', async function() {
+      noPaymentBtn.disabled = true;
+      noPaymentBtn.textContent = 'Confirming...';
+      payError.textContent = '';
+      try {
+        var bookRes = await fetch(API_BASE + '/api/public/confirm-booking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            businessId: businessId,
+            pendingBooking: pendingBooking,
+            agreedKeys: agreedKeys,
+            agreedAt: agreedAt,
+            paymentIntentId: null,
+          }),
+        });
+        var bookData = await bookRes.json();
+        overlay.remove();
+        panel.style.height = '';
+
+        if (bookRes.ok && bookData.bookingConfirmed) {
+          addBookingConfirmedCard(bookData.bookingConfirmed);
+        } else {
+          addMessage('bot', bookData.error || 'Booking failed. Please contact us.');
+        }
+      } catch(e) {
+        payError.textContent = 'Connection error. Please try again.';
+        noPaymentBtn.disabled = false;
+        noPaymentBtn.textContent = 'Confirm Appointment →';
       }
     });
   }

@@ -355,6 +355,140 @@
     });
   }
 
+  // ── Payment/agreement modal (fires when the server stages a booking that needs
+  //    agreement acceptance and/or payment before it's actually created) ──────
+  var stripeLoadPromise = null;
+  function loadStripeJs() {
+    if (window.Stripe) return Promise.resolve();
+    if (stripeLoadPromise) return stripeLoadPromise;
+    stripeLoadPromise = new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://js.stripe.com/v3/';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    return stripeLoadPromise;
+  }
+
+  function addPendingBookingCard(pendingBooking, agreements) {
+    var row = document.createElement('div');
+    row.className = 'h-msg bot';
+
+    var card = document.createElement('div');
+    card.style.cssText = 'background:rgba(123,47,255,0.08);border:1px solid rgba(123,47,255,0.3);border-radius:14px;padding:14px 16px;font-size:13px;color:rgba(255,255,255,0.85);min-width:220px;';
+
+    var agreementsHtml = '';
+    for (var i = 0; i < agreements.length; i++) {
+      var a = agreements[i];
+      agreementsHtml += '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;font-size:12px;color:rgba(255,255,255,0.65);cursor:pointer;">'
+        + '<input type="checkbox" class="h-agree-cb" data-key="' + a.key + '" style="margin-top:2px;flex-shrink:0;" />'
+        + '<span><strong style="color:rgba(255,255,255,0.85);">' + (a.title || '') + '</strong>' + (a.body ? ' — ' + a.body : '') + '</span></label>';
+    }
+
+    card.innerHTML = '<div style="font-weight:900;color:#a78bfa;margin-bottom:10px;font-size:12px;letter-spacing:.05em;">CONFIRM YOUR BOOKING</div>'
+      + agreementsHtml
+      + '<div id="hailey-payment-element" style="margin:10px 0;"></div>'
+      + '<div id="hailey-pending-error" style="color:#ff4d8d;font-size:12px;margin-bottom:8px;display:none;"></div>'
+      + '<button id="hailey-confirm-pending" style="width:100%;padding:10px;background:linear-gradient(135deg,#00d4ff,#7b2fff);color:white;font-weight:900;font-size:13px;border:none;border-radius:10px;cursor:pointer;">Confirm Booking →</button>';
+
+    row.appendChild(card);
+    messages.appendChild(row);
+    messages.scrollTop = messages.scrollHeight;
+
+    var errorEl = card.querySelector('#hailey-pending-error');
+    var confirmBtn = card.querySelector('#hailey-confirm-pending');
+    var stripe = null, elements = null, paymentEl = null, needsPayment = false;
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+    }
+
+    // Try to set up a payment element — if the business has no payment configured,
+    // /api/public/payment-intent will 400 and we proceed agreement-only.
+    (async function setupPayment() {
+      try {
+        var intentRes = await fetch(API_BASE + '/api/public/payment-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ businessId: businessId, name: pendingBooking.name, email: pendingBooking.email }),
+        });
+        if (!intentRes.ok) return; // no payment configured for this business — agreement-only flow
+        var intentData = await intentRes.json();
+        if (!intentData.clientSecret || !intentData.publishableKey) return;
+
+        needsPayment = true;
+        await loadStripeJs();
+        stripe = window.Stripe(intentData.publishableKey);
+        elements = stripe.elements({ clientSecret: intentData.clientSecret });
+        paymentEl = elements.create('payment');
+        paymentEl.mount('#hailey-payment-element');
+      } catch (e) {
+        // Payment setup failed silently — owner can be notified via the escalation path;
+        // widget still allows agreement-only confirmation if payment isn't required.
+      }
+    })();
+
+    confirmBtn.addEventListener('click', async function () {
+      errorEl.style.display = 'none';
+
+      var checkboxes = card.querySelectorAll('.h-agree-cb');
+      var agreedKeys = [];
+      var allChecked = true;
+      for (var i = 0; i < checkboxes.length; i++) {
+        if (checkboxes[i].checked) agreedKeys.push(checkboxes[i].getAttribute('data-key'));
+        else allChecked = false;
+      }
+      if (!allChecked) { showError('Please accept all agreements to continue.'); return; }
+
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Confirming...';
+
+      var paymentIntentId = null;
+      try {
+        if (needsPayment) {
+          if (!stripe || !elements) { showError('Payment form failed to load. Please refresh and try again.'); confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm Booking →'; return; }
+          var result = await stripe.confirmPayment({ elements: elements, redirect: 'if_required' });
+          if (result.error) {
+            showError(result.error.message || 'Payment failed. Please check your card details.');
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Confirm Booking →';
+            return;
+          }
+          paymentIntentId = result.paymentIntent && result.paymentIntent.id;
+        }
+
+        var confirmRes = await fetch(API_BASE + '/api/public/confirm-booking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            businessId: businessId,
+            pendingBooking: pendingBooking,
+            agreedKeys: agreedKeys,
+            agreedAt: new Date().toISOString(),
+            paymentIntentId: paymentIntentId,
+          }),
+        });
+        var confirmData = await confirmRes.json();
+        if (!confirmRes.ok) {
+          showError(confirmData.error || 'Something went wrong confirming your booking.');
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = 'Confirm Booking →';
+          return;
+        }
+
+        confirmBtn.textContent = '✓ Confirmed!';
+        confirmBtn.style.background = '#22c55e';
+        if (confirmData.bookingConfirmed) addBookingConfirmedCard(confirmData.bookingConfirmed);
+      } catch (e) {
+        showError('Connection error. Please try again.');
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Confirm Booking →';
+      }
+    });
+  }
+
   async function sendMessage() {
     var text = input.value.trim();
     if (!text || isTyping) return;
@@ -374,6 +508,9 @@
       addMessage('bot', data.reply || 'Sorry, I ran into an issue. Please try again.');
       if (data.bookingConfirmed) {
         addBookingConfirmedCard(data.bookingConfirmed);
+      }
+      if (data.pendingBooking) {
+        addPendingBookingCard(data.pendingBooking, data.bookingAgreements || []);
       }
       if (data.resendSent) {
         var row = document.createElement('div');
