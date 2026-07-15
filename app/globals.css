@@ -11,6 +11,13 @@
 
 * { box-sizing: border-box; }
 
+button, [role="button"], a, label, select, summary, input[type="checkbox"], input[type="radio"] {
+  cursor: pointer;
+}
+button:disabled, [role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 body {
   background: var(--bg);
   color: #e2e8f0;
